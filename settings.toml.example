@@ -1,0 +1,15 @@
+# The path to your Firefox profile, which is used to locate the Advent of Code session cookie.
+
+firefox_profile_path = "C:/Users/MyUser/AppData/Roaming/Mozilla/Firefox/Profiles/blah"
+
+# If you use containers in Firefox, you might also need to specify the container the cookie is set
+# in. This can be done by specifying a value for this setting, which will resolve to a filter on
+# the "originAttributes" column in the cookie database. I don't know how you find what value it
+# should be for a given container; I don't use containers, so all I know is that for your usual,
+# container-free browsing, the value to use is the empty string.
+
+firefox_container_origin_attributes = ""
+
+# The user agent string to use when sending requests to the Advent of Code site.
+
+user_agent = "github.com/your-github-user-name/your-repo-name by yourname@example.com"

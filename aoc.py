@@ -20,6 +20,12 @@ class AOC:
     firefox_container_origin_attributes: str
 
     def __init__(self):
+        if not SETTINGS_PATH.exists():
+            raise ConfigError(
+                'No settings file found. Read settings.toml.example, make the appropriate '
+                f'adjustments to the settings and save a copy at {SETTINGS_PATH}.'
+            )
+
         with SETTINGS_PATH.open('rb') as f:
             _dict = tomllib.load(f)
 
@@ -32,6 +38,8 @@ class AOC:
             )
 
         self.firefox_container_origin_attributes = _dict.get('firefox_container_origin_attributes', '')
+
+        self.user_agent = _dict.get('user_agent')
 
     @ft.cached_property
     def session_cookie(self) -> str:
@@ -61,6 +69,13 @@ class AOC:
         return session_cookie_row[0]
 
     @ft.cache
+    def common_request_headers(self):
+        return {
+            'Cookie': f'session={self.session_cookie}',
+            'User-Agent': self.user_agent
+        }
+
+    @ft.cache
     def input(self, day: int, year: int) -> str:
         dir_path = INPUT_PATH / str(year)
         dir_path.mkdir(parents=True, exist_ok=True)
@@ -71,7 +86,7 @@ class AOC:
                 return f.read()
 
         url = f'https://adventofcode.com/{year}/day/{day}/input'
-        request = urllib.request.Request(url, headers={'Cookie': f'session={self.session_cookie}'})
+        request = urllib.request.Request(url, headers=self.common_request_headers)
         print(f'[request log] GET {url}')
         response = urllib.request.urlopen(request)
         
@@ -96,7 +111,7 @@ class AOC:
         url = f'https://adventofcode.com/{year}/day/{day}/answer'
         data = {'level': str(part), 'answer': answer}
         data = urllib.parse.urlencode(data).encode('us-ascii')
-        request = urllib.request.Request(url, data, headers={'Cookie': f'session={self.session_cookie}'})
+        request = urllib.request.Request(url, data, headers=self.common_request_headers)
         print(f'[request log] POST {url}')
         response = urllib.request.urlopen(request)
 
