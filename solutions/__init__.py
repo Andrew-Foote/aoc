@@ -1,0 +1,1 @@
+from solutions import y2022
