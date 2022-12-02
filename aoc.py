@@ -129,7 +129,8 @@ if __name__ == '__main__':
     year_module = getattr(solutions, f'y{year}')
     day_module = getattr(year_module, f'd{day}')
 
-    day_module.test()
+    test_part_method = getattr(day_module, f'test_p{part}')    
+    test_part_method()
 
     part_method = getattr(day_module, f'p{part}')
 
