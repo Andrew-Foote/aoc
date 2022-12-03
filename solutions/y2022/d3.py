@@ -1,4 +1,4 @@
-from typing import Iterator
+from typing import Iterable, Iterator
 
 Rucksack = tuple[set[str], set[str]]
 
@@ -69,3 +69,44 @@ def test_p1() -> None:
     assert item_priority(i5) == 20
     assert item_priority(i6) == 19
     assert sum(map(item_priority, (i1, i2, i3, i4, i5, i6))) == 157
+
+RucksackGroup = tuple[Rucksack, Rucksack, Rucksack]
+
+def rucksack_groups(rucksacks: Iterable[Rucksack]) -> Iterator[RucksackGroup]:
+    current = []
+
+    for rucksack in rucksacks:
+        current.append(rucksack)
+
+        if len(current) == 3:
+            yield tuple(current)
+            current.clear()
+
+def rucksack_all_items(rucksack: Rucksack) -> set[str]:
+    return rucksack[0] | rucksack[1]
+
+def badge(rucksack_group: RucksackGroup) -> str:
+    g1, g2, g3 = rucksack_group
+
+    isect = (
+        rucksack_all_items(g1)
+        & rucksack_all_items(g2)
+        & rucksack_all_items(g3)
+    )
+
+    assert len(isect) == 1
+    return isect.pop()
+
+def group_priority(rucksack_group: RucksackGroup) -> int:
+    return item_priority(badge(rucksack_group))
+
+def test_p2() -> None:
+    groups = list(rucksack_groups(parse_rucksacks(TEST_INPUT)))
+
+    assert badge(groups[0]) == 'r'
+    assert badge(groups[1]) == 'Z'
+    assert sum(map(group_priority, groups)) == 70
+
+def p2(ip: str) -> int:
+    groups = rucksack_groups(parse_rucksacks(ip))
+    return sum(map(group_priority, groups))
