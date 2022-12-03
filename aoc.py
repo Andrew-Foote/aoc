@@ -68,7 +68,7 @@ class AOC:
 
         return session_cookie_row[0]
 
-    @ft.cache
+    @ft.cached_property
     def common_request_headers(self):
         return {
             'Cookie': f'session={self.session_cookie}',

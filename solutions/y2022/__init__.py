@@ -1,1 +1,1 @@
-from solutions.y2022 import d1, d2
+from solutions.y2022 import d1, d2, d3
