@@ -1,15 +1,32 @@
 from enum import Enum
 from typing import Iterator
 
+test_inputs = [('example', '''\
+A Y
+B X
+C Z\
+''', [
+    ('p1_csv', '\n'.join(['paper,rock,win,8', 'rock,paper,lose,1', 'scissors,scissors,draw,6'])),
+    ('p1', 15),
+    ('p2_csv', '\n'.join(['rock,rock,draw,4', 'rock,paper,lose,1', 'rock,scissors,win,7'])),
+    ('p2', 12)
+])]
+
+def csv_p1(ip: str) -> None:
+    return '\n'.join(
+        ','.join((*round_, ROUND_TO_OUTCOME[round_], round_to_score(*round_)))
+        for round_ in p1_interpret_guide(ip)
+    )
+
 class Move(Enum):
-    ROCK = 0
-    PAPER = 1
-    SCISSORS = 2
+    ROCK = 'rock'
+    PAPER = 'paper'
+    SCISSORS = 'scissors'
 
 class Outcome(Enum):
-    WIN = 0
-    LOSE = 1
-    DRAW = 2
+    WIN = 'win'
+    LOSE = 'lose'
+    DRAW = 'draw'
 
 Round = tuple[Move, Move]
 
@@ -64,32 +81,17 @@ def round_to_score(self_move: Move, other_move: Move) -> int:
         + OUTCOME_TO_SCORE[ROUND_TO_OUTCOME[self_move, other_move]]
     )
 
-TEST_INPUT = '''\
-A Y
-B X
-C Z\
-'''
-
-def test_p1() -> None:
-    rounds = list(p1_interpret_guide(TEST_INPUT))
-    assert len(rounds) == 3
-
-    assert rounds[0] == (Move.PAPER, Move.ROCK)
-    assert ROUND_TO_OUTCOME[rounds[0]] == Outcome.WIN
-    assert round_to_score(*rounds[0]) == 8
-
-    assert rounds[1] == (Move.ROCK, Move.PAPER)
-    assert ROUND_TO_OUTCOME[rounds[1]] == Outcome.LOSE
-    assert round_to_score(*rounds[1]) == 1
-
-    assert rounds[2] == (Move.SCISSORS, Move.SCISSORS)
-    assert ROUND_TO_OUTCOME[rounds[2]] == Outcome.DRAW
-    assert round_to_score(*rounds[2]) == 6
-
-    assert sum(round_to_score(*round_) for round_ in rounds) == 15
+def p1_csv(ip: str) -> None:
+    return '\n'.join(
+        ','.join((
+            round_[0].value, round_[1].value,
+            ROUND_TO_OUTCOME[round_].value, str(round_to_score(*round_)))
+        )
+        for round_ in p1_interpret_guide(ip)
+    )
 
 def p1(ip: str) -> int:
-    return sum(round_to_score(*round_) for round_ in p1_interpret_guide(ip))
+    return str(sum(round_to_score(*round_) for round_ in p1_interpret_guide(ip)))
 
 COL2_CODE_TO_OUTCOME: dict[str, Outcome] = {
     'X': Outcome.LOSE,
@@ -109,19 +111,14 @@ def p2_interpret_guide(ip: str) -> Iterator[Round]:
         self_move = OTHER_MOVE_AND_OUTCOME_TO_SELF_MOVE[other_move, outcome]
         yield self_move, other_move
 
-def test_p2() -> None:
-    rounds = list(p2_interpret_guide(TEST_INPUT))
-
-    assert rounds[0] == (Move.ROCK, Move.ROCK)
-    assert round_to_score(*rounds[0]) == 4
-
-    assert rounds[1] == (Move.ROCK, Move.PAPER)
-    assert round_to_score(*rounds[1]) == 1
-
-    assert rounds[2] == (Move.ROCK, Move.SCISSORS)
-    assert round_to_score(*rounds[2]) == 7
-
-    assert sum(round_to_score(*round_) for round_ in rounds) == 12
+def p2_csv(ip: str) -> None:
+    return '\n'.join(
+        ','.join((
+            round_[0].value, round_[1].value,
+            ROUND_TO_OUTCOME[round_].value, str(round_to_score(*round_)))
+        )
+        for round_ in p2_interpret_guide(ip)
+    )
 
 def p2(ip: str) -> int:
-    return sum(round_to_score(*round_) for round_ in p2_interpret_guide(ip))
+    return str(sum(round_to_score(*round_) for round_ in p2_interpret_guide(ip)))

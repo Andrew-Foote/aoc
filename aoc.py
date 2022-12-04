@@ -1,16 +1,25 @@
-from pathlib import Path
+from abc import ABC
 import datetime
 import functools as ft
+import importlib
+import logging
 import os
+from pathlib import Path
 import re
 import sqlite3
+import sys
 import tomllib
-from typing import Iterator
+from typing import Iterator, Optional
 import urllib.parse
 import urllib.request
+import methodlib
+from methods import python, sql
 
-SETTINGS_PATH = Path('settings.toml')
-INPUT_PATH = Path('input')
+logging.basicConfig(
+    filename='requests.log', encoding='utf-8', level=logging.INFO,
+    format='%(asctime)s %(levelname)-8s %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 class ConfigError(Exception):
     pass
@@ -20,13 +29,15 @@ class AOC:
     firefox_container_origin_attributes: str
 
     def __init__(self):
-        if not SETTINGS_PATH.exists():
+        settings_path = Path('settings.toml')
+
+        if not settings_path.exists():
             raise ConfigError(
                 'No settings file found. Read settings.toml.example, make the appropriate '
                 f'adjustments to the settings and save a copy at {SETTINGS_PATH}.'
             )
 
-        with SETTINGS_PATH.open('rb') as f:
+        with settings_path.open('rb') as f:
             _dict = tomllib.load(f)
 
         self.firefox_profile_path = Path(_dict['firefox_profile_path'])
@@ -50,9 +61,9 @@ class AOC:
                 f'Unable to find the Firefox cookie database at {firefox_cookie_db_path}.'
             )
 
-        db = sqlite3.connect(firefox_cookie_db_path)
+        firefox_cookie_db = sqlite3.connect(firefox_cookie_db_path)
 
-        session_cookie_row = db.execute(
+        session_cookie_row = firefox_cookie_db.execute(
             '''
                 select "value" from "moz_cookies" as "current"
                 where "name" = ? and "host" = ? and "path" = ? and "originAttributes" = ?
@@ -69,6 +80,107 @@ class AOC:
         return session_cookie_row[0]
 
     @ft.cached_property
+    def db(self):
+        db_path = Path('db.sqlite')
+        exists = db_path.exists()
+        conn = sqlite3.connect(db_path)
+
+        if not exists:
+            conn.executescript('''
+                -- The input for the AoC {year} puzzle for day {day} was {content}.
+                create table "input" (
+                    "year" integer check ("year" >= 120),
+                    "day" integer check ("day" >= 1 and "day" <= 25),
+                    "content" text not null,
+                    primary key ("year", "day")
+                ) without rowid;
+
+                -- {number} is a possible part number for an AoC puzzle.
+                create table "part" ("number" integer primary key);
+                insert into "part" ("number") values (1), (2);
+
+                -- The answer for part {part} of the AoC {year} puzzle for day {day} was {content}.
+                create table "answer" (
+                    "year" integer,
+                    "day" integer,
+                    "part" integer,
+                    "content" text not null,
+                    primary key ("year", "day", "part"),
+                    foreign key ("year", "day") references "input" ("year", "day"),
+                    foreign key ("part") references "part" ("number")
+                ) without rowid;
+
+                -- At the time corresponding to the Unix timestamp {timestamp}, the user used this
+                -- script to submit an answer for part {part} of the AoC {year} puzzle for day
+                -- {day} to the AoC site, and the AoC site responded by saying that the answer was
+                -- incorrect.
+                create table "failed_submission" (
+                    "timestamp" integer,
+                    "year" integer not null,
+                    "day" integer not null,
+                    "part" integer not null,
+                    primary key ("timestamp"),
+                    foreign key ("year", "day") references "input" ("year", "day"),
+                    foreign key ("part") references "part" ("number")
+                ) without rowid;
+
+                -- {content} is an example input for the AoC {year} puzzle for day {year}, which
+                -- can be used for testing. It can be referred to by the name {name}.
+                create table "test_input" (
+                    "year" integer,
+                    "day" integer,
+                    "name" text,
+                    "index" integer not null,
+                    "content" text not null,
+                    primary key ("year", "day", "name"),
+                    unique ("year", "day", "index"),
+                    unique ("year", "day", "content"),
+                    foreign key ("year", "day") references "input" ("year", "day")
+                ) without rowid;
+
+                create table "test_facet" (
+                    "year" integer,
+                    "day" integer,
+                    "name" text,
+                    "index" integer not null,
+                    primary key ("year", "day", "name"),
+                    unique ("year", "day", "index"),
+                    foreign key ("year", "day") references "input" ("year", "day")                    
+                ) without rowid;
+
+                -- {content} is the answer to a question that can be asked about the example input
+                -- identified by {year}, {day}, {input}. The question is identified by the string
+                -- {facet}.
+                create table "test_answer" (
+                    "year" integer,
+                    "day" integer,
+                    "input" text,
+                    "facet" text,
+                    "content" text not null,
+                    primary key ("year", "day", "input", "facet"),
+                    foreign key ("year", "day", "input")
+                        references "test_input" ("year", "day", "name"),
+                    foreign key ("year", "day", "facet")
+                        references "test_facet" ("year", "day", "name")
+                ) without rowid;
+
+                -- The user has used this script to test an answer to part {part} of the AoC {year}
+                -- puzzle for day {day} using method {method}, and the answer was found to be
+                -- correct.
+                create table "method_completed" (
+                    "method" text,
+                    "year" integer,
+                    "day" integer,
+                    "part" integer,
+                    primary key ("method", "year", "day", "part"),
+                    foreign key ("year", "day") references "input" ("year", "day"),
+                    foreign key ("part") references "part" ("number")
+                ) without rowid;
+            ''')
+
+        return conn
+
+    @ft.cached_property
     def common_request_headers(self):
         return {
             'Cookie': f'session={self.session_cookie}',
@@ -76,86 +188,306 @@ class AOC:
         }
 
     @ft.cache
-    def input(self, day: int, year: int) -> str:
-        dir_path = INPUT_PATH / str(year)
-        dir_path.mkdir(parents=True, exist_ok=True)
-        path = dir_path / f'{day}.txt'
+    def input(self, year: int, day: int) -> str:
+        row = self.db.execute(
+            'select "content" from "input" where "year" = ? and "day" = ?',
+            (year, day)
+        ).fetchone()
 
-        if path.exists():
-            with path.open(encoding='utf-8') as f:
-                return f.read()
+        if row is not None:
+            return row[0]
 
         url = f'https://adventofcode.com/{year}/day/{day}/input'
         request = urllib.request.Request(url, headers=self.common_request_headers)
-        print(f'[request log] GET {url}')
         response = urllib.request.urlopen(request)
+        logging.info('GET %s', url)
         
         with response:
             content = response.read().decode('utf-8')
 
-        with path.open('w', encoding='utf-8') as f:
+        with self.db:
+            self.db.execute(
+                'insert into "input" ("year", "day", "content") values (?, ?, ?)',
+                (year, day, content)
+            )
+
+        # copy inputs to a file as well, for greater visibility --- DB is the source of truth
+        # though
+        dir_path = Path('input') / str(year)
+        dir_path.mkdir(parents=True, exist_ok=True)
+
+        with (dir_path / f'{day}.txt').open('w', encoding='utf-8') as f:
             f.write(content)
 
         return content
 
-    def submit_answer(self, answer: str, part: int, day: int, year: int) -> str:
-        lock_path = Path('lock.txt')
 
-        if lock_path.exists():
-            with lock_path.open('r', encoding='utf-8') as f:
-                lock_created = datetime.datetime.fromisoformat(f.read().strip())
+    def register_answer(self, year: int, day: int, part: int, answer: str) -> None:
+        with self.db:
+            self.db.execute('''
+                insert into "answer" ("year", "day", "part", "content")
+                values (?, ?, ?, ?)
+            ''', (year, day, part, answer))
 
-                while (datetime.datetime.now() - lock_created).total_seconds() <= 60:
-                    input('The website has asked us to wait one minute before trying again. ')
+    def submit_answer(self, year: int, day: int, part: int, answer: str) -> str:
+        while self.db.execute('''select exists(
+            select * from "failed_submission" where "year" = ? and "day" = ? and "part" = ?
+            and ? - "timestamp" <= 60
+        )''', (year, day, part, datetime.datetime.now().timestamp())).fetchone()[0]:
+            input(
+                'You already submitted an answer for this problem within the past minute. You need'
+                'to wait a minute before trying again.'
+            )
 
         url = f'https://adventofcode.com/{year}/day/{day}/answer'
         data = {'level': str(part), 'answer': answer}
-        data = urllib.parse.urlencode(data).encode('us-ascii')
-        request = urllib.request.Request(url, data, headers=self.common_request_headers)
-        print(f'[request log] POST {url}')
+        encoded_data = urllib.parse.urlencode(data)
+        
+        request = urllib.request.Request(
+            url,
+            encoded_data.encode('us-ascii'),
+            headers=self.common_request_headers
+        )
+
         response = urllib.request.urlopen(request)
+        logging.info(f'POST {url} {encoded_data}')
 
         with response:
             content = response.read().decode('utf-8')
 
-        body = re.search(r'<main>(.*)</main>', content, re.DOTALL).group(1)
+        body_match = re.search(r'<main>(.*)</main>', content, re.DOTALL)
 
-        # strip html tags
+        if body_match is None:
+            print('Unexpected response format---no <main> tag! Assuming it was the wrong answer...\n')
+            return False, content
+
+        body = body_match.group(1)
+
+        if '<span class="day-success">' in body:
+            success = True
+            self.register_answer(year, day, part, answer)
+        elif "That's not the right answer" in body:
+            success = False
+
+            with db:
+                self.db.execute('''
+                    insert into "failed_submission" ("timestamp", "year", "day", "part")
+                    values (?, ?, ?, ?, ?)
+                ''', (datetime.datetime.now().timestamp(), year, day, part))
+        elif "You don't seem to be solving the right level" in body:
+            print(
+                'You have already submitted an answer for this puzzle but the answer was not '
+                'recorded by this tool.'
+            )
+
+            submitted_answers = self.find_submitted_answers(year, day)
+
+            try:
+                submitted_answer = submitted_answers[part]
+            except KeyError:
+                print(f'Could not find the previously-submitted answer for part {part}.')
+                success = False
+            else:
+                success = submitted_answer == answer
+                like_or_unlike = 'like' if success else 'unlike'
+
+                print(
+                    f'The previously-submitted answer was {submitted_answer}, {like_or_unlike} the'
+                    ' one you were trying to submit.'
+                )
+        else:
+            print('Unexpected response format! Assuming it was the wrong answer...\n')
+            success = False
+
+        # strip html tags for display
         body = re.sub(r'<.*?>', '', body, re.DOTALL)
 
-        if 'Please wait one minute before trying again' in body:
-            with lock_path.open('w', encoding='utf-8') as f:
-                f.write(str(datetime.datetime.now()))
+        return success, body
 
-        return body
-        # <span class="day-success">
+    def find_submitted_answers(self, year: int, day: int) -> bool:
+        url = f'https://adventofcode.com/{year}/day/{day}'        
+        request = urllib.request.Request(url, headers=self.common_request_headers)
+        response = urllib.request.urlopen(request)
+        logging.info(f'GET {url}')
+
+        with response:
+            content = response.read().decode('utf-8')
+
+        answers = [
+            m.group(1) for m in
+            re.finditer(r'Your puzzle answer was <code>(.*?)</code>', content)
+        ]
+
+        if len(answers) not in (1, 2):
+            print(
+                'Unexpected response format when trying to find the values of already-submitted '
+                f'answers on the AoC site---{len(answers)} were found using the regex '
+                '/Your puzzle answer was <code>(.*?)</code>/. Here is the response in full:\n'
+            )
+
+            print(content)
+
+        for i, answer in enumerate(answers[:2]):
+            self.register_answer(year, day, i + 1, answer)
         
+        return {i + 1: answer for i, answer in enumerate(answers)}
+
+    def method_completed(self, method: str, year: int, day: int, part: int) -> bool:
+        return self.db.execute('''
+            select exists(
+                select * from "method_completed"
+                where "method" = ? and "year" = ? and "day" = ? and "part" = ?
+            )
+        ''', (method, year, day, part)).fetchone()[0]
+
+    def tests(self, year: int, day: int) -> list[tuple[int, str, str, str]]:
+        return list(self.db.execute('''
+            select
+                "test_input"."name", "test_input"."content",
+                "test_answer"."facet", "test_answer"."content"
+            from "test_input"
+            join "test_answer" on
+                "test_input"."year" = "test_answer"."year"
+                and "test_input"."day" = "test_answer"."day"
+            where "test_input"."year" = ? and "test_input"."day" = ?
+        ''', (year, day)))
+
+    def maybe_answer(self, year: int, day: int, part: int) -> Optional[str]:
+        row = self.db.execute(
+            'select "content" from "answer" where "year" = ? and "day" = ? and "part" = ?',
+            (year, day, part)
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        return row[0]
+
+    def interpret_test_defs(self, year: int, day: int, test_defs: methodlib.TestDefs) -> None:
+        with self.db:
+            for i, (name, input_, facets) in enumerate(test_defs):
+                self.db.execute('''
+                    insert into "test_input" ("year", "day", "name", "index", "content")
+                    values (?, ?, ?, ?, ?)
+                    on conflict do update set
+                        "index" = "excluded"."index", "content" = "excluded"."content"
+                ''', (year, day, name, i, input_))
+
+                for i, (facet, answer) in enumerate(facets):
+                    self.db.execute('''
+                        insert into "test_facet" ("year", "day", "name", "index")
+                        values (?, ?, ?, ?)
+                        on conflict do update set "index" = "excluded"."index"
+                    ''', (year, day, facet, i))
+
+                    self.db.execute('''
+                        insert into "test_answer" ("year", "day", "input", "facet", "content")
+                        values (?, ?, ?, ?, ?)
+                        on conflict do update set "content" = "excluded"."content"
+                    ''', (year, day, name, facet, answer))
+
+    def register_completed_method(self, method_name: str, year: int, day: int, part: int) -> None:
+        self.db.execute('''
+            insert into "method_completed" ("method", "year", "day", "part")
+            values (?, ?, ?, ?) on conflict do nothing
+        ''', (method_name, year, day, part))
+
 if __name__ == '__main__':
-    import sys
+    import argparse
 
-    if len(sys.argv) > 4:
-        raise RuntimeError('Too many arguments, expected at most 3 (part, day, year).')
+    parser = argparse.ArgumentParser(
+        prog = 'Advent of Code Tool',
+        description = 'Automates aspects of solving Advent of Code problems.'
+    )
 
-    part = int(sys.argv[1]) if len(sys.argv) > 1 else 1
-    day = int(sys.argv[2]) if len(sys.argv) > 2 else datetime.date.today().day
-    year = int(sys.argv[3]) if len(sys.argv) > 3 else datetime.date.today().year
+    today = datetime.date.today()
+    parser.add_argument('-m', '--method', choices=methodlib.methods.keys(), default='python')
+    parser.add_argument('-y', '--year', type=int)
+    parser.add_argument('-d', '--day', type=int)
+    parser.add_argument('-p', '--part', type=int)
+    args = parser.parse_args()
 
-    import solutions
-    year_module = getattr(solutions, f'y{year}')
-    day_module = getattr(year_module, f'd{day}')
+    method_name = args.method
 
-    test_part_method = getattr(day_module, f'test_p{part}')    
-    test_part_method()
+    try:
+        method = methodlib.methods[method_name]
+    except KeyError:
+        print(f"'{method_name}' is not a recognized method name.")
+        sys.exit()
 
-    part_method = getattr(day_module, f'p{part}')
+    if args.year is None:
+        if today.month == 12:
+            year = today.year
+        else:
+            year = today.year - 1
+    else:
+        year = args.year
+
+    if args.day is None:
+        if year == today.year and today.month == 12 and today.day <= 25:
+                day = today.day
+        else:
+            print(
+                f'There is no puzzle today for Advent of Code {year}. Please specify the day using'
+                'the -d option.'
+            )
+    else:
+        day = args.day
 
     aoc = AOC()
-    input_ = aoc.input(day, year)
-    answer = part_method(input_)
-    print(answer)
 
-    should_submit = input('Submit answer? (y/n) ') == 'y'
+    if args.part is None:
+        if aoc.method_completed(method_name, year, day, 1):
+            part = 2
+        else:
+            part = 1
+    else:
+        part = args.part
 
-    if should_submit:
-        response = aoc.submit_answer(answer, part, day, year)
-        print(f'Response:\n{response}')
+    print(f"Running '{method_name}' solution for Advent of Code {year}, day {day}, part {part}.")
+
+    aoc.interpret_test_defs(year, day, method.test_defs(year, day))
+
+    print('\nTest results:\n')
+       
+    has_at_least_one_test = False
+
+    for test_input_name, test_input, facet, expected_test_answer in aoc.tests(year, day):
+        has_at_least_one_test = True
+        print(f"Input '{test_input_name}', facet '{facet}': ", end='')
+
+        if method.has_facet(year, day, facet):
+            answer = method.run_facet(year, day, facet, test_input)
+
+            if answer != expected_test_answer:
+                print(f"failed (got '{answer}', expected '{expected_test_answer}')")
+            else:
+                print(f"succeeded (got '{answer}' as expected)")
+        else:
+            print('no test available')
+
+    if has_at_least_one_test:
+        input('\nAre you happy with the test results? Press Enter to continue, Ctrl+C to cancel.')
+    else:
+        input('There are no tests to run! Maybe you should add some?')
+
+    answer = method.run_part(year, day, part, aoc.input(year, day))
+    print(f'Answer: {answer}')
+
+    if (expected_answer := aoc.maybe_answer(year, day, part)) is None:
+        should_submit = input(
+            'You have not solved this problem already. Submit the answer to the Advent of Code '
+            'website? (y/n) '
+        ) == 'y'
+
+        if should_submit:
+            success, response = aoc.submit_answer(year, day, part, answer)
+            print(f'Response:\n{response}')
+
+            if success:
+                aoc.register_completed_method(method_name, year, day, part)
+    elif expected_answer == answer:
+        print('Correct.')
+        aoc.register_completed_method(method_name, year, day, part)
+    else:
+        print(f'Incorrect. The correct answer was {expected_answer}.')
