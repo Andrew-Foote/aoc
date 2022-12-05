@@ -11,7 +11,9 @@ test_inputs = [('example', '''\
 2-6,4-8\
 ''', [
 	('full_contain_pairs_csv', '3,4'),
-	('p1', '2') 
+	('p1', '2'),
+	('overlap_pairs_csv', ';;7;3,4,5,6,7;6;4,5,6'),
+	('p2', '4')
 ])]
 
 ElfPair = tuple[range, range]
@@ -40,3 +42,15 @@ def full_contain_pairs_csv(ip: str) -> str:
 
 def p1(ip: str) -> int:
 	return sum(1 for _ in full_contain_pairs(ip))
+
+def range_isect(r1: range, r2: range) -> range:
+	return range(max(r1.start, r2.start), min(r1.stop, r2.stop))
+
+def pair_range_isects(ip: str) -> Iterator[range]:
+	return (range_isect(r1, r2) for r1, r2 in pairs(ip))
+
+def overlap_pairs_csv(ip: str) -> str:
+	return ';'.join(','.join(map(str, r)) for r in pair_range_isects(ip))
+
+def p2(ip: str) -> int:
+	return sum(1 for r in pair_range_isects(ip) if r)
