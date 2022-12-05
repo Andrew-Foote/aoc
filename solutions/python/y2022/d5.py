@@ -21,7 +21,13 @@ move 1 from 1 to 2
 		'1,C,M;2;3,P,D,N,Z',
 		'1,C;2,M;3,P,D,N,Z'
 	])),
-	('p1', 'CMZ')
+	('p1', 'CMZ'),
+	('stacks_phases_p2_csv', joinlines([
+		'1,Z,N,D;2,M,C;3,P',
+		'1;2,M,C;3,P,Z,N,D',
+		'1,M,C;2;3,P,Z,N,D',
+		'1,M;2,C;3,P,Z,N,D'
+	])),
 ])]
 
 Stacks = dict[int, list[int]]
@@ -83,4 +89,24 @@ def stacks_phases_csv(ip: str) -> str:
 def p1(ip: str) -> str:
 	stacks, proc = parse(ip)
 	list(stacks_phases(stacks, proc))
+	return ''.join(stacks[i][-1] for i in sorted(stacks.keys()))
+
+def apply_instr_p2(stacks: Stacks, instr: tuple[int, int, int]) -> None:
+	count, src, dst = instr
+	stacks[dst].extend(stacks[src][-count:])
+	del stacks[src][-count:]
+
+def stacks_phases_p2(stacks: Stacks, proc: Proc) -> Iterator[Stacks]:
+	for instr in proc:
+		apply_instr_p2(stacks, instr)
+		current_stacks = {i: stack.copy() for i, stack in stacks.items()}
+		yield current_stacks
+
+def stacks_phases_p2_csv(ip: str) -> str:
+	stacks, proc = parse(ip)
+	return joinlines(stacks_as_csv(curstacks) for curstacks in stacks_phases_p2(stacks, proc))
+
+def p2(ip: str) -> str:
+	stacks, proc = parse(ip)
+	list(stacks_phases_p2(stacks, proc))
 	return ''.join(stacks[i][-1] for i in sorted(stacks.keys()))
