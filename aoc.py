@@ -392,10 +392,11 @@ class AOC:
                     ''', (year, day, name, facet, answer))
 
     def register_completed_method(self, method_name: str, year: int, day: int, part: int) -> None:
-        self.db.execute('''
-            insert into "method_completed" ("method", "year", "day", "part")
-            values (?, ?, ?, ?) on conflict do nothing
-        ''', (method_name, year, day, part))
+        with self.db:
+            self.db.execute('''
+                insert into "method_completed" ("method", "year", "day", "part")
+                values (?, ?, ?, ?) on conflict do nothing
+            ''', (method_name, year, day, part))
 
 if __name__ == '__main__':
     import argparse
