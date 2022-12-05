@@ -11,7 +11,7 @@ def has_facet(year: int, day: int, facet: str):
     return hasattr(_module(year, day), facet)
 
 def run_facet(year: int, day: int, facet: str, ip: str) -> str:
-    return getattr(_module(year, day), facet)(ip)
+    return str(getattr(_module(year, day), facet)(ip))
 
 def test_defs(year: int, day: int) -> methodlib.TestDefs:
     module = _module(year, day)

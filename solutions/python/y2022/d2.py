@@ -1,11 +1,8 @@
 from enum import Enum
 from typing import Iterator
+from utils import joinlines
 
-test_inputs = [('example', '''\
-A Y
-B X
-C Z\
-''', [
+test_inputs = [('example', joinlines(['A Y', 'B X', 'C Z']), [
     ('p1_csv', '\n'.join(['paper,rock,win,8', 'rock,paper,lose,1', 'scissors,scissors,draw,6'])),
     ('p1', 15),
     ('p2_csv', '\n'.join(['rock,rock,draw,4', 'rock,paper,lose,1', 'rock,scissors,win,7'])),
@@ -91,7 +88,7 @@ def p1_csv(ip: str) -> None:
     )
 
 def p1(ip: str) -> int:
-    return str(sum(round_to_score(*round_) for round_ in p1_interpret_guide(ip)))
+    return sum(round_to_score(*round_) for round_ in p1_interpret_guide(ip))
 
 COL2_CODE_TO_OUTCOME: dict[str, Outcome] = {
     'X': Outcome.LOSE,
@@ -121,4 +118,4 @@ def p2_csv(ip: str) -> None:
     )
 
 def p2(ip: str) -> int:
-    return str(sum(round_to_score(*round_) for round_ in p2_interpret_guide(ip)))
+    return sum(round_to_score(*round_) for round_ in p2_interpret_guide(ip))

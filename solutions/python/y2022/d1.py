@@ -45,8 +45,8 @@ def calories(ip: str) -> Iterator[int]:
 def calories_csv(ip: str) -> str:
     return ','.join(map(str, calories(ip)))
 
-def p1(ip: str) -> str:
-    return str(max(calories(ip)))
+def p1(ip: str) -> int:
+    return max(calories(ip))
 
 def top3_calories(ip: str) -> str:
     return sorted(calories(ip))[-3:]
@@ -54,5 +54,5 @@ def top3_calories(ip: str) -> str:
 def top3_calories_csv(ip: str) -> str:
     return ','.join(map(str, top3_calories(ip)))
 
-def p2(ip: str) -> str:
-    return str(sum(top3_calories(ip)))
+def p2(ip: str) -> int:
+    return sum(top3_calories(ip))

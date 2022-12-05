@@ -1,9 +1,16 @@
 import functools as ft
 from pathlib import Path
-import sqlite3
+import apsw
 import methodlib
 
-_db = sqlite3.connect(':memory:', isolation_level=None)
+# https://rogerbinns.github.io/apsw/tips.html
+def _sqlite_error_handler(errcode, message):
+    errstr=apsw.mapping_result_codes[errcode & 255]
+    print ("SQLITE_LOG: %s (%d) %s %s" % (message, errcode, errstr, apsw.mapping_extended_result_codes.get(errcode, "")))
+
+apsw.config(apsw.SQLITE_CONFIG_LOG, _sqlite_error_handler)
+
+_db = apsw.Connection(':memory:')
 
 _db.execute('''
     create table "input" (
@@ -16,18 +23,23 @@ def _load(year: int, day: int) -> None:
     with Path(f'solutions/sql/{year}/{day}.sql').open() as f:
         script = f.read()
 
-    _db.executescript(script)
+    _db.execute(script)
 
 def has_facet(year: int, day: int, facet: str) -> bool:
     _load(year, day)
     
     return bool(_db.execute(
-        'select exists(* from "sqlite_schema" where "name" = ?)', (facet,)
+        'select exists(select * from "sqlite_schema" where "name" = ?)', (facet,)
     ).fetchone()[0])
 
 def run_facet(year: int, day: int, facet: str, ip: str) -> str:
     _load(year, day)
-    _db.execute('insert into "input" ("id", "content") values (1, ?) on conflict replace', (ip,))
-    return _db.execute(f'select "answer" from "{facet}"').fetchone()[0]
+    
+    _db.execute('''
+        insert into "input" ("id", "content") values (1, ?)
+        on conflict do update set "content" = "excluded"."content"
+    ''', (ip,))
+
+    return str(_db.execute(f'select "answer" from "{facet}"').fetchone()[0])
 
 methodlib.register('sql', has_facet, run_facet)

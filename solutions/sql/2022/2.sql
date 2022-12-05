@@ -1,20 +1,28 @@
-create view "round_count" ("round_count") as select length(select "input" from "input") / 5;
+create view "round_count" ("round_count") as select length((select "content" from "input")) / 4;
 
 create view "round" ("num", "code1", "code2") as
-	select "value", substr("input", "value" * 5 + 1, 1), substr("input", "value" * 5 + 3, 1)
-	from "input" join generate_series(0, (select "round_count" from "round_count") - 1);
+	select
+		"value",
+		substr("input"."content", "value" * 4 + 1, 1),
+		substr("input"."content", "value" * 4 + 3, 1)
+	from "input" join (
+		with recursive "series" ("value") as (
+			select 0 union all select "value" + 1 from "series"
+			where "value" < (select "round_count" from "round_count") - 1
+		) select * from "series"
+	);
 
-create view "move" ("name", "beats", "code1", "code2", "score") as (values
+	-- generate_series(0, (select "round_count" from "round_count") - 1);
+
+create view "move" ("name", "beats", "code1", "code2", "score") as values
 	('rock', 'scissors', 'A', 'X', 1),
 	('paper', 'rock', 'B', 'Y', 2),
-	('scissors', 'paper', 'C', 'Z', 3)
-);
+	('scissors', 'paper', 'C', 'Z', 3);
 
-create view "outcome" ("name", "score", "code2") as (values
+create view "outcome" ("name", "score", "code2") as values
 	('lose', 0, 'X'),
 	('draw', 3, 'Y'),
-	('win', 6, 'Z')
-);
+	('win', 6, 'Z');
 
 create view "moves_outcome" ("self_move", "other_move", "outcome") as
 	select "self_move"."name", "other_move"."name", case
@@ -35,13 +43,13 @@ create view "round_p1" ("num", "self_move", "other_move", "outcome", "score") as
 		and "other_move"."name" = "moves_outcome"."other_move"
 	join "outcome" on "outcome"."name" = "moves_outcome"."outcome";
 
-create view "csv_p1" ("answer") as
+create view "p1_csv" ("answer") as
 	select group_concat(
 		"self_move" || ',' || "other_move" || ',' || "outcome" || ',' || "score", char(10)
 	)
 	from (select * from "round_p1" order by "num");
 
-create view "p2" ("answer") as select sum("score") from "round_p1";
+create view "p1" ("answer") as select sum("score") from "round_p1";
 
 create view "round_p2" ("num", "self_move", "other_move", "outcome", "score") as
 	select
@@ -53,9 +61,9 @@ create view "round_p2" ("num", "self_move", "other_move", "outcome", "score") as
 	join "moves_outcome" on
 		"other_move"."name" = "moves_outcome"."other_move" 
 		and "outcome"."name" = "moves_outcome"."outcome"
-	join "outcome" on "outcome"."name" = "moves_outcome"."outcome";
+	join "move" as "self_move" on "moves_outcome"."self_move" = "self_move"."name";
 
-create view "csv_p2" ("answer") as
+create view "p2_csv" ("answer") as
 	select group_concat(
 		"self_move" || ',' || "other_move" || ',' || "outcome" || ',' || "score", char(10)
 	)

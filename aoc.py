@@ -14,6 +14,7 @@ import urllib.parse
 import urllib.request
 import methodlib
 from methods import python, sql
+from utils import newlineescape
 
 logging.basicConfig(
     filename='requests.log', encoding='utf-8', level=logging.INFO,
@@ -216,11 +217,10 @@ class AOC:
         dir_path = Path('input') / str(year)
         dir_path.mkdir(parents=True, exist_ok=True)
 
-        with (dir_path / f'{day}.txt').open('w', encoding='utf-8') as f:
+        with (dir_path / f'{day}.txt').open('w', encoding='utf-8', newline='\n') as f:
             f.write(content)
 
         return content
-
 
     def register_answer(self, year: int, day: int, part: int, answer: str) -> None:
         with self.db:
@@ -346,10 +346,15 @@ class AOC:
                 "test_input"."name", "test_input"."content",
                 "test_answer"."facet", "test_answer"."content"
             from "test_input"
+            join "test_facet" on
+                "test_input"."year" = "test_facet"."year"
+                and "test_input"."day" = "test_facet"."day"
             join "test_answer" on
-                "test_input"."year" = "test_answer"."year"
-                and "test_input"."day" = "test_answer"."day"
+                "test_facet"."year" = "test_answer"."year"
+                and "test_facet"."day" = "test_answer"."day"
+                and "test_facet"."name" = "test_answer"."facet"
             where "test_input"."year" = ? and "test_input"."day" = ?
+            order by "test_input"."index", "test_facet"."index"
         ''', (year, day)))
 
     def maybe_answer(self, year: int, day: int, part: int) -> Optional[str]:
@@ -460,9 +465,9 @@ if __name__ == '__main__':
             answer = method.run_facet(year, day, facet, test_input)
 
             if answer != expected_test_answer:
-                print(f"failed (got '{answer}', expected '{expected_test_answer}')")
+                print(f"failed (got '{newlinescape(answer)}', expected '{newlineescape(expected_test_answer)}')")
             else:
-                print(f"succeeded (got '{answer}' as expected)")
+                print(f"succeeded (got '{newlineescape(answer)}' as expected)")
         else:
             print('no test available')
 
