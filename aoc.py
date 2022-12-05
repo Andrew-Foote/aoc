@@ -190,6 +190,7 @@ class AOC:
 
     @ft.cache
     def input(self, year: int, day: int) -> str:
+        # try to get it from the DB first
         row = self.db.execute(
             'select "content" from "input" where "year" = ? and "day" = ?',
             (year, day)
@@ -198,6 +199,24 @@ class AOC:
         if row is not None:
             return row[0]
 
+        # if not, try the filesystem --- maybe we manually downloaded it
+        dir_path = Path('input') / str(year)
+        dir_path.mkdir(parents=True, exist_ok=True)
+        input_path = dir_path / f'{day}.txt'
+
+        if input_path.exists():
+            with input_path.open('r', encoding='utf-8', newline='\n') as f:
+                content = f.read()
+
+                with self.db:
+                    self.db.execute('''
+                        insert into "input" ("year", "day", "content")
+                        values (?, ?, ?)
+                    ''', (year, day, content))
+
+            return content
+
+        # last resort: send a HTTP request to the website
         url = f'https://adventofcode.com/{year}/day/{day}/input'
         request = urllib.request.Request(url, headers=self.common_request_headers)
         response = urllib.request.urlopen(request)
