@@ -1,16 +1,39 @@
+import itertools as it
 from typing import Iterable, Iterator
+from utils import joinlines
+
+test_inputs = [('example', '''\
+vJrwpWtwJgWrhcsFMMfFFhFp
+jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL
+PmmdzqPrVvPwwTWBwg
+wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn
+ttgJtRGJQctTZtZT
+CrZsJsPPZsGzwwsLwLmpwMDw\
+''', [
+    ('first3_compartments_csv', joinlines([
+        'vJrwpWtwJgWr,hcsFMMfFFhFp',
+        'jqHRNqRjqzjGDLGL,rsFMfFZSrLrFZsSL',
+        'PmmdzqPrV,vPwwTWBwg'
+    ])),
+    ('p1_csv', joinlines(['p,16', 'L,38', 'P,42', 'v,22', 't,20', 's,19'])),
+    ('p1', '157'),
+    ('badges_csv', 'r,Z'),
+    ('p2', '70')
+])]
+
+def compartments(ip: str) -> Iterator[tuple[str, str]]:
+    for line in ip.splitlines():
+        halfway = len(line) // 2
+        yield line[:halfway], line[halfway:]
+
+def first3_compartments_csv(ip: str) -> list[Iterator]:
+    return joinlines(f'{c1},{c2}' for c1, c2 in it.islice(compartments(ip), 3))
 
 Rucksack = tuple[set[str], set[str]]
 
-def parse_rucksacks(ip: str) -> Iterator[Rucksack]:
-    for line in ip.split('\n'):
-        line = line.strip()
-
-        if line:
-            halfway = len(line) // 2
-            compartment1 = line[:halfway]
-            compartment2 = line[halfway:]
-            yield set(compartment1), set(compartment2)
+def rucksacks(ip: str) -> Iterator[Rucksack]:
+    for c1, c2 in compartments(ip):
+        yield set(c1), set(c2)
 
 def common_item(rucksack: Rucksack) -> list[int]:
     isect = rucksack[0] & rucksack[1]
@@ -24,51 +47,17 @@ def item_priority(item: str) -> int:
         return ord(item) - ord('A') + 27
     assert False
 
+def p1_csv(ip: str) -> str:
+    csv = []
+
+    for rucksack in rucksacks(ip):
+        item = common_item(rucksack)
+        csv.append(f'{item},{item_priority(item)}')
+
+    return joinlines(csv)
+
 def p1(ip: str) -> int:
-    rucksacks = parse_rucksacks(ip)
-    return sum(item_priority(common_item(rucksack)) for rucksack in rucksacks)
-
-TEST_INPUT = '''\
-vJrwpWtwJgWrhcsFMMfFFhFp
-jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL
-PmmdzqPrVvPwwTWBwg
-wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn
-ttgJtRGJQctTZtZT
-CrZsJsPPZsGzwwsLwLmpwMDw\
-'''
-
-def test_p1() -> None:
-    rucksacks = list(parse_rucksacks(TEST_INPUT))
-    assert len(rucksacks) == 6
-
-    assert rucksacks[0] == (set('vJrwpWtwJgWr'), set('hcsFMMfFFhFp'))
-    i1 = common_item(rucksacks[0])
-    assert i1 == 'p'
-
-    assert rucksacks[1] == (set('jqHRNqRjqzjGDLGL'), set('rsFMfFZSrLrFZsSL'))
-    i2 = common_item(rucksacks[1])
-    assert i2 == 'L'
-
-    assert rucksacks[2] == (set('PmmdzqPrV'), set('vPwwTWBwg'))
-    i3 = common_item(rucksacks[2])
-    assert i3 == 'P'
-
-    i4 = common_item(rucksacks[3])
-    assert i4 == 'v'
-
-    i5 = common_item(rucksacks[4])
-    assert i5 == 't'
-
-    i6 = common_item(rucksacks[5])
-    assert i6 == 's'
-
-    assert item_priority(i1) == 16
-    assert item_priority(i2) == 38, i2
-    assert item_priority(i3) == 42
-    assert item_priority(i4) == 22
-    assert item_priority(i5) == 20
-    assert item_priority(i6) == 19
-    assert sum(map(item_priority, (i1, i2, i3, i4, i5, i6))) == 157
+    return sum(item_priority(common_item(rucksack)) for rucksack in rucksacks(ip))
 
 RucksackGroup = tuple[Rucksack, Rucksack, Rucksack]
 
@@ -100,13 +89,9 @@ def badge(rucksack_group: RucksackGroup) -> str:
 def group_priority(rucksack_group: RucksackGroup) -> int:
     return item_priority(badge(rucksack_group))
 
-def test_p2() -> None:
-    groups = list(rucksack_groups(parse_rucksacks(TEST_INPUT)))
-
-    assert badge(groups[0]) == 'r'
-    assert badge(groups[1]) == 'Z'
-    assert sum(map(group_priority, groups)) == 70
+def badges_csv(ip) -> str:
+    return ','.join(badge(group) for group in rucksack_groups(rucksacks(ip)))
 
 def p2(ip: str) -> int:
-    groups = rucksack_groups(parse_rucksacks(ip))
+    groups = rucksack_groups(rucksacks(ip))
     return sum(map(group_priority, groups))

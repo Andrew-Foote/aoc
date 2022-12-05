@@ -465,7 +465,7 @@ if __name__ == '__main__':
             answer = method.run_facet(year, day, facet, test_input)
 
             if answer != expected_test_answer:
-                print(f"failed (got '{newlinescape(answer)}', expected '{newlineescape(expected_test_answer)}')")
+                print(f"failed (got '{newlineescape(answer)}', expected '{newlineescape(expected_test_answer)}')")
             else:
                 print(f"succeeded (got '{newlineescape(answer)}' as expected)")
         else:
