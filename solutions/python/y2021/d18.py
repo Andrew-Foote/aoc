@@ -53,7 +53,8 @@ test_inputs = [
 [[[[5,2],5],[8,[3,7]]],[[5,[7,5]],[4,4]]]\
 ''', [
 	('final_sum', '[[[[6,6],[7,6]],[[7,7],[7,0]]],[[[7,7],[7,7]],[[7,8],[9,9]]]]'),
-	('p1', '4140')
+	('p1', '4140'),
+	('p2', '3993')
 ])
 ]
 
@@ -250,3 +251,22 @@ def magnitude(sn: SN) -> int:
 
 def p1(ip: str) -> int:
 	return magnitude(final_sum(ip))
+
+from copy import deepcopy
+
+def p2(ip: str) -> int:
+	sns = list(parse(ip))
+	bestmag = None
+
+	# bit slow but works
+	for sn1 in sns:
+		for sn2 in sns:
+			sn1_copy = deepcopy(sn1)
+			sn2_copy = deepcopy(sn2)
+			snsn = sn1_copy + sn2_copy
+			mag = magnitude(snsn)
+
+			if bestmag is None or mag > bestmag:
+				bestmag = mag
+
+	return bestmag
