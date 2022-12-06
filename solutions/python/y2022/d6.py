@@ -1,5 +1,4 @@
 from collections import deque
-from typing import Iterator
 
 test_inputs = [
 	('example', 'mjqjpqmgbljsphdztnvjfqwrcgsmlb', [
