@@ -4,9 +4,11 @@ import functools as ft
 import itertools as it
 import math
 import operator
-from typing import Iterator
+import re
+from typing import cast, Iterable, Iterator
 
-test_inputs = [('example', '''\
+test_inputs = [
+('example', '''\
 [1,2]
 [[1,2],3]
 [9,[8,7]]
@@ -59,7 +61,7 @@ SNPath = list[bool]
 
 @dataclass
 class SN:
-	value: int | list['SN', 'SN']
+	value: int | tuple['SN', 'SN']
 
 	@property
 	def is_reg_num(self) -> bool:
@@ -69,23 +71,31 @@ class SN:
 	def reg_num(value: int) -> 'SN':
 		return SN(value)
 
+	def set_reg_num(self, value: int) -> None:
+		self.value = value
+
 	@property
 	def is_pair(self) -> bool:
-		return isinstance(self.value, list)
+		return isinstance(self.value, tuple)
 
 	@property
 	def left(self) -> 'SN':
+		assert isinstance(self.value, tuple)
 		return self.value[0]
 
 	@property
 	def right(self) -> 'SN':
+		assert isinstance(self.value, tuple)
 		return self.value[1]
 
 	@staticmethod
 	def pair(left: 'SN', right: 'SN') -> 'SN':
-		return SN([left, right])
+		return SN((left, right))
 
-	def get(self, path: SNPath) -> None:
+	def set_pair(self, left: 'SN', right: 'SN') -> None:
+		self.value = (left, right)
+
+	def get(self, path: SNPath) -> 'SN':
 		node = self
 
 		for dir_ in path:
@@ -107,21 +117,35 @@ def parse(ip: str) -> Iterator[SN]:
 		yield sn_parse(line)
 
 def sn_parse(s: str) -> SN:
-	# need to fix this parser
-	s = s.lstrip('[')
-	s = s.rstrip(']')
-	parts = s.split(',')
-	if len(parts) == 1: return SN.reg_num(int(parts[0]))
-	if len(parts) > 2:
-		print()
-		print('ALERRT!!!')
-		print()
-		print(parts)
-		print()
-		print('ALERTT!!!!')
-		print()
-	left, right = map(sn_parse, parts)
-	return SN.pair(left, right)
+	int_pat = re.compile(r'\d+')
+
+	def parse_sn(i: int) -> tuple[SN, int]:
+		m = int_pat.match(s, i)
+
+		if m is not None:
+			return SN.reg_num(int(m.group())), m.end()
+
+		if s[i] != '[':
+			raise ValueError(f"'{s}', index {i}: expected a digit or '['")
+
+		left, i = parse_sn(i + 1)
+		
+		if s[i] != ',':
+			raise ValueError(f"'{s}', index {i}: expected ','")
+
+		right, i = parse_sn(i + 1)
+
+		if s[i] != ']':
+			raise ValueError(f"'{s}', index {i}: expected ']'")
+
+		return SN.pair(left, right), i + 1
+
+	res, i = parse_sn(0)
+
+	if i != len(s):
+		raise ValueError(f"'{s}', index {i}: parsing finished early")
+
+	return res
 
 def sn_walk(sn: SN) -> Iterator[SNPath]:
 	yield []
@@ -133,43 +157,77 @@ def sn_walk(sn: SN) -> Iterator[SNPath]:
 		for subpath in sn_walk(sn.right):
 			yield [False, *subpath]
 
-def sn_reduce(root: SN) -> SN:
-	while True:
-		reduced = False
-		last_reg_num_seen = None
-		walker = sn_walk(root)
+def sn_reduce1(root: SN) -> None:
+	reduced = False
+	last_reg_num_seen = None
+	walker = sn_walk(root)
+	node_to_split = None
 
-		for path in walker:
-			node = root.get(path)
+	for path in walker:
+		node = root.get(path)
 
-			if node.is_reg_num:
-				last_reg_num_seen = node
+		if node.is_reg_num:
+			last_reg_num_seen = node
+			value = cast(int, node.value)
 
-				if node.value > 10:
-					node.value = [math.floor(node.value / 2), math.ceil(node.value / 2)]
-					reduced = True
+			if value >= 10 and node_to_split is None:
+				node_to_split = node
+
+		if (
+			node.is_pair and len(path) >= 4
+			and node.left.is_reg_num and node.right.is_reg_num
+		):
+			#print(f'exploding at {node} at {path}')
+
+			if last_reg_num_seen is not None:
+				assert isinstance(last_reg_num_seen.value, int)
+				last_reg_num_seen.value += cast(int, node.left.value)
+
+			right_value = cast(int, node.right.value)
+			node.set_reg_num(0)
+
+			for path in walker:
+				node = root.get(path)
+
+				if node.is_reg_num:
+					#print(f'  right-extended to {node} at {path}')
+					assert isinstance(node.value, int)
+					node.value += right_value
 					break
 
-			elif (
-				node.is_pair and len(path) >= 4
-				and node.left.is_reg_num and node.right.is_reg_num
-			):
-				if last_reg_num_seen is not None: last_reg_num_seen.value += node.left.value	
-				right_value = node.right.value
-				node.value = 0
-				left_subpath, right_subpath = it.islice(walker, 2)
+			reduced = True
+			break
 
-				for path in walker:
-					node = root.get(path)
+	# had to look on reddit to figure out the bug here:
+	# https://old.reddit.com/r/adventofcode/comments/rj1oz7/aoc_2021_day_18_part_1_example_input_question/
+	# we have to consider explosions before splits
+	if not reduced and node_to_split is not None:
+		#print(f'splitting at {node_to_split} at {path}')
+		value = cast(int, node_to_split.value)
+		node_to_split.set_pair(SN.reg_num(math.floor(value / 2)), SN.reg_num(math.ceil(value / 2)))
+		reduced = True
 
-					if node.is_reg_num:
-						node.value += right_value
-						break
+	return reduced
 
-				reduced = True
-				break
+def sn_reduce(root: SN) -> None:
+	#print(f'reducing {root}')
 
-		if not reduced: break
+	while True:
+		reduced = sn_reduce1(root)
+		#print(f'-> {root}')
+		#input()
+
+		if not reduced:
+			#print('fin')
+			break
+
+def sn_sum(sns: Iterable[SN]) -> SN:
+	res = sns[0]
+
+	for sn in sns[1:]:
+		res += sn
+
+	return res
 
 def final_sum(ip: str) -> SN:
 	s = None
@@ -180,10 +238,12 @@ def final_sum(ip: str) -> SN:
 		else:
 			s += sn
 
+	assert s is not None
 	return s
 
 def magnitude(sn: SN) -> int:
 	if sn.is_reg_num:
+		assert isinstance(sn.value, int)
 		return sn.value
 	else:
 		return 3 * magnitude(sn.left) + 2 * magnitude(sn.right)
