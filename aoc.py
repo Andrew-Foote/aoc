@@ -299,21 +299,7 @@ class AOC:
                 'recorded by this tool.'
             )
 
-            submitted_answers = self.find_submitted_answers(year, day)
-
-            try:
-                submitted_answer = submitted_answers[part]
-            except KeyError:
-                print(f'Could not find the previously-submitted answer for part {part}.')
-                success = False
-            else:
-                success = submitted_answer == answer
-                like_or_unlike = 'like' if success else 'unlike'
-
-                print(
-                    f'The previously-submitted answer was {submitted_answer}, {like_or_unlike} the'
-                    ' one you were trying to submit.'
-                )
+            success = self.find_submitted_answer_and_compare(year, day, part, answer)
         else:
             print('Unexpected response format! Assuming it was the wrong answer...\n')
             success = False
@@ -351,6 +337,25 @@ class AOC:
         
         return {i + 1: answer for i, answer in enumerate(answers)}
 
+    def find_submitted_answers_and_compare(self, year: int, day: int, part: int, answer: str):
+        submitted_answers = self.find_submitted_answers(year, day)
+
+        try:
+            submitted_answer = submitted_answers[part]
+        except KeyError:
+            print(f'Could not find the previously-submitted answer for part {part}.')
+            success = False
+        else:
+            success = submitted_answer == answer
+            like_or_unlike = 'like' if success else 'unlike'
+
+            print(
+                f'The previously-submitted answer was {submitted_answer}, {like_or_unlike} the'
+                ' one you were trying to submit.'
+            )
+
+        return success
+
     def method_completed(self, method: str, year: int, day: int, part: int) -> bool:
         return self.db.execute('''
             select exists(
@@ -365,13 +370,14 @@ class AOC:
                 "test_input"."name", "test_input"."content",
                 "test_answer"."facet", "test_answer"."content"
             from "test_input"
-            join "test_facet" on
-                "test_input"."year" = "test_facet"."year"
-                and "test_input"."day" = "test_facet"."day"
             join "test_answer" on
-                "test_facet"."year" = "test_answer"."year"
-                and "test_facet"."day" = "test_answer"."day"
-                and "test_facet"."name" = "test_answer"."facet"
+                "test_input"."year" = "test_answer"."year"
+                and "test_input"."day" = "test_answer"."day"
+                and "test_input"."name" = "test_answer"."input"
+            join "test_facet" on
+                "test_answer"."year" = "test_facet"."year"
+                and "test_answer"."day" = "test_facet"."day"
+                and "test_answer"."facet" = "test_facet"."name"
             where "test_input"."year" = ? and "test_input"."day" = ?
             order by "test_input"."index", "test_facet"."index"
         ''', (year, day)))
@@ -454,8 +460,9 @@ if __name__ == '__main__':
         else:
             print(
                 f'There is no puzzle today for Advent of Code {year}. Please specify the day using'
-                'the -d option.'
+                ' the -d option.'
             )
+            sys.exit()
     else:
         day = args.day
 
@@ -500,14 +507,22 @@ if __name__ == '__main__':
     print(f'Answer: {answer}')
 
     if (expected_answer := aoc.maybe_answer(year, day, part)) is None:
-        should_submit = input(
-            'You have not solved this problem already. Submit the answer to the Advent of Code '
-            'website? (y/n) '
-        ) == 'y'
+        opt = input(
+            'An answer for this puzzle has not been recorded already. Options:\n'
+            '  (n) do nothing\n'
+            '  (e) try to get the answer from the Advent of Code website '
+              "(if you've already submitted an answer to this puzzle manually)\n"
+            '  (s) submit the answer to the Advent of Code website\n'
+        )
 
-        if should_submit:
+        if opt == 's':
             success, response = aoc.submit_answer(year, day, part, answer)
             print(f'Response:\n{response}')
+
+            if success:
+                aoc.register_completed_method(method_name, year, day, part)
+        elif opt == 'e':
+            success = aoc.find_submitted_answers_and_compare(year, day, part, answer)
 
             if success:
                 aoc.register_completed_method(method_name, year, day, part)
