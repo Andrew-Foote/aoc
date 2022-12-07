@@ -22,9 +22,10 @@ $ ls
 8033020 d.log
 5626152 d.ext
 7214296 k\
-''', [(
-	('p1', '95437')
-)])]
+''', [
+	('p1', '95437'),
+	('p2', '24933642')
+])]
 
 from collections import deque
 from dataclasses import dataclass
@@ -57,7 +58,7 @@ class Dir:
 	parent: Optional['Dir']
 	children: list[Union[File, 'Dir']]
 
-	@property
+	@ft.cached_property
 	def size(self) -> int:
 		return sum(child.size for child in self.children)
 
@@ -121,7 +122,26 @@ def iterdirs(root: Dir):
 
 def p1(ip: str) -> int:
 	cmds = parse(ip)
-	cmds = list(cmds)
 	root = makefs(cmds)
 
 	return sum(dir_.size for dir_ in iterdirs(root) if dir_.size <= 100_000)
+
+def p2(ip: str) -> int:
+	cmds = parse(ip)
+	root = makefs(cmds)
+	used = root.size
+	#used = sum(dir_.size for dir_ in iterdirs(root) if dir_.size <= 100_000)
+	print('used', used)
+	total_space = 70_000_000
+	unused = total_space - used
+	print('unused', unused)
+	required_unused = 30_000_000
+	necessary_to_delete = required_unused - unused
+	print('nec to delete', necessary_to_delete)
+
+	return min([
+		dir_
+		for dir_
+		in iterdirs(root)
+		if dir_.size >= necessary_to_delete
+	], key=lambda dir_: dir_.size).size
