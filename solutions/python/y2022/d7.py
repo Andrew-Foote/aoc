@@ -130,18 +130,14 @@ def p2(ip: str) -> int:
 	cmds = parse(ip)
 	root = makefs(cmds)
 	used = root.size
-	#used = sum(dir_.size for dir_ in iterdirs(root) if dir_.size <= 100_000)
-	print('used', used)
 	total_space = 70_000_000
 	unused = total_space - used
-	print('unused', unused)
 	required_unused = 30_000_000
 	necessary_to_delete = required_unused - unused
-	print('nec to delete', necessary_to_delete)
 
-	return min([
-		dir_
+	return min(
+		dir_.size
 		for dir_
 		in iterdirs(root)
 		if dir_.size >= necessary_to_delete
-	], key=lambda dir_: dir_.size).size
+	)
