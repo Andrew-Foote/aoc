@@ -151,6 +151,14 @@ noop\
 ''', [
 	('sigstrengths_csv', '420,1140,1800,2940,2880,3960'),
 	('p1', '13140'),
+	('p2', '''\
+##..##..##..##..##..##..##..##..##..##..
+###...###...###...###...###...###...###.
+####....####....####....####....####....
+#####.....#####.....#####.....#####.....
+######......######......######......####
+#######.......#######.......#######.....\
+''')
 ])]
 
 REG_START = 1
@@ -200,3 +208,31 @@ def sigstrengths_csv(ip: str) -> str:
 
 def p1(ip: str) -> int:
 	return sum(sigstrengths(ip))
+
+# height, width
+CRT_SIZE = (6, 40)
+
+def p2(ip: str) -> int:
+	states = run(parse(ip))
+	screen = [[None] * 40 for _ in range(6)]
+
+	for cycle, reg in enumerate(states, start=1):
+		rownum, colnum = divmod((cycle - 1), 40)
+
+		if reg - 1 <= colnum <= reg + 1:
+			screen[rownum][colnum] = '#'
+		else:
+			screen[rownum][colnum] = '.'
+
+	lines = []
+
+	for row in screen:
+		line = []
+
+		for col in row:
+			line.append(col)
+
+		lines.append(''.join(line))
+
+	print('\n'.join(lines))
+	return '\n'.join(lines)
