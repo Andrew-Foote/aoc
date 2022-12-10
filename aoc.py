@@ -160,9 +160,9 @@ class AOC:
                     "content" text not null,
                     primary key ("year", "day", "input", "facet"),
                     foreign key ("year", "day", "input")
-                        references "test_input" ("year", "day", "name"),
+                        references "test_input" ("year", "day", "name") on delete cascade,
                     foreign key ("year", "day", "facet")
-                        references "test_facet" ("year", "day", "name")
+                        references "test_facet" ("year", "day", "name") on delete cascade
                 ) without rowid;
 
                 -- The user has used this script to test an answer to part {part} of the AoC {year}
@@ -395,6 +395,9 @@ class AOC:
 
     def interpret_test_defs(self, year: int, day: int, test_defs: methodlib.TestDefs) -> None:
         with self.db:
+            #self.db.execute('delete from "test_answer" where "year" = ? and "day" = ?', (year, day))
+            #self.db.execute('delete from "test_facet" where "year" = ? and "day" = ?', (year, day))
+
             for i, (name, input_, facets) in enumerate(test_defs):
                 self.db.execute('''
                     insert into "test_input" ("year", "day", "name", "index", "content")
@@ -404,6 +407,7 @@ class AOC:
                 ''', (year, day, name, i, input_))
 
                 for i, (facet, answer) in enumerate(facets):
+                    print(facet)
                     self.db.execute('''
                         insert into "test_facet" ("year", "day", "name", "index")
                         values (?, ?, ?, ?)

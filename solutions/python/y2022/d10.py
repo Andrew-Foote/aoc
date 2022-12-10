@@ -1,5 +1,5 @@
 import itertools as it
-from typing import Iterable, Iterator
+from typing import Iterable, Iterator, Literal
 
 test_inputs = [('example', '''\
 addx 15
@@ -161,30 +161,23 @@ noop\
 ''')
 ])]
 
-REG_START = 1
+Instr = tuple[Literal['noop']] | tuple[Literal['addx'], int]
 
-def addx(reg, v):
-	# wait two cycles?
-	return reg + v
-
-def noop(reg):
-	# wait one cycle
-	pass
-
-def parse(ip) -> Iterator[tuple]:
+def parse(ip) -> Iterator[Instr]:
 	for line in ip.splitlines():
 		parts = line.split()
 
-		if len(parts) == 1: # noop
-			yield parts # 'noop'
+		if len(parts) == 1:
+			assert parts[0] == 'noop'
+			yield 'noop',
 		elif len(parts) == 2:
-			iname, v = parts # iname = 'addx'
-			yield iname, int(v)
+			assert parts[0] == 'addx'
+			yield 'addx', int(parts[1])
 		else:
 			assert False
 
-def run(prog: Iterable[tuple]) -> Iterator[int]:
-	reg = REG_START
+def run(prog: Iterable[Instr]) -> Iterator[int]: # iterator of register values
+	reg = 1
 
 	for instr in prog:
 		if instr[0] == 'noop':
@@ -194,12 +187,15 @@ def run(prog: Iterable[tuple]) -> Iterator[int]:
 			yield reg
 			yield reg
 			reg += v
+		else:
+			print(instr)
+			assert False
+
+def states(prog: Iterable[Instr]) -> Iterator[tuple[int, int]]: # iterator of (cycle number, register value) tuples
+	return enumerate(run(prog), start=1)
 
 def sigstrengths(ip: str) -> Iterator[int]:
-	prog = parse(ip)
-	regs = run(prog)
-
-	for cycle, reg in enumerate(regs, start=1):
+	for cycle, reg in states(parse(ip)):
 		if (cycle - 20) % 40 == 0:
 			yield cycle * reg
 
@@ -209,29 +205,18 @@ def sigstrengths_csv(ip: str) -> str:
 def p1(ip: str) -> int:
 	return sum(sigstrengths(ip))
 
-# height, width
-CRT_SIZE = (6, 40)
+CRT_W = 40
+CRT_H = 6
+
+def screen(ip: str) -> int:
+	rows = [[None] * CRT_W for _ in range(CRT_H)]
+
+	for cycle, reg in states(parse(ip)):
+		rownum, colnum = divmod((cycle - 1), CRT_W)
+		rows[rownum][colnum] = '#' if abs(colnum - reg) <= 1 else '.'
+
+	return rows
 
 def p2(ip: str) -> int:
-	states = run(parse(ip))
-	screen = [[None] * 40 for _ in range(6)]
-
-	for cycle, reg in enumerate(states, start=1):
-		rownum, colnum = divmod((cycle - 1), 40)
-
-		if reg - 1 <= colnum <= reg + 1:
-			screen[rownum][colnum] = '#'
-		else:
-			screen[rownum][colnum] = '.'
-
-	lines = []
-
-	for row in screen:
-		line = []
-
-		for col in row:
-			line.append(col)
-
-		lines.append(''.join(line))
-
-	return '\n'.join(lines)
+	rows = screen(ip)
+	return '\n'.join(''.join(row) for row in rows)
