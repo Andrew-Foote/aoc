@@ -234,5 +234,4 @@ def p2(ip: str) -> int:
 
 		lines.append(''.join(line))
 
-	print('\n'.join(lines))
 	return '\n'.join(lines)

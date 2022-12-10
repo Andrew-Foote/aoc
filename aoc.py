@@ -504,7 +504,7 @@ if __name__ == '__main__':
         input('There are no tests to run! Maybe you should add some?')
 
     answer = method.run_part(year, day, part, aoc.input(year, day))
-    print(f'Answer: {answer}')
+    print(f'Answer:\n{answer}')
 
     if (expected_answer := aoc.maybe_answer(year, day, part)) is None:
         opt = input(
