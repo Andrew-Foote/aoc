@@ -5,3 +5,4 @@ env
 settings.toml
 *.log
 db.sqlite
+input
