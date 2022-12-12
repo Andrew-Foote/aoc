@@ -288,7 +288,7 @@ class AOC:
         elif "That's not the right answer" in body:
             success = False
 
-            with db:
+            with self.db:
                 self.db.execute('''
                     insert into "failed_submission" ("timestamp", "year", "day", "part")
                     values (?, ?, ?, ?, ?)
