@@ -38,36 +38,45 @@ def parse(ip) -> Iterator[tuple[Packet, Packet]]:
 		packets = [eval(packet) for packet in packets]
 		yield packets
 
-def cmplt(packet1, packet2):
+def cmp(packet1, packet2):
 	if isinstance(packet1, int):
 		if isinstance(packet2, int):
-			return packet1 < packet2
-	
-		return cmplt([packet1], packet2)
+			if packet1 < packet2:
+				return -1
+
+			if packet1 > packet2:
+				return 1
+
+			return 0
+
+		return cmp([packet1], packet2)
 	
 	if isinstance(packet2, int):
-		return cmplt(packet1, [packet2])
+		return cmp(packet1, [packet2])
 
-	for i, u in enumerate(packet1):
+	i = 0
+
+	while i < len(packet1):
 		if i >= len(packet2):
-			return False
+			return 1
 
+		u = packet1[i]
 		v = packet2[i]
+		c = cmp(u, v)
 
-		if cmplt(u, v):
-			return True
+		if c != 0:
+			return c
 
-		if cmplt(v, u):
-			return False
+		i += 1
 
-	return True
+	if i == len(packet2):
+		return 0
 
-def cmple(packet1, packet2):
-	return packet1 == packet2 or cmplt(packet1, packet2)
+	return -1
 
 def ro_pair_indices(ip: str) -> int:
 	for i, (packet1, packet2) in enumerate(parse(ip), start=1):
-		if cmple(packet1, packet2):
+		if cmp(packet1, packet2) == -1:
 			#print(i, ':', packet1, '<=', packet2)
 			yield i
 
