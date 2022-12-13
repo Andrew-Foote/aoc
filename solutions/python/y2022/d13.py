@@ -1,3 +1,5 @@
+import functools as ft
+import itertools as it
 from typing import Iterator
 
 test_inputs = [('example', '''\
@@ -27,7 +29,28 @@ test_inputs = [('example', '''\
 ''', [
 	('ro_pair_indices_csv', '1,2,4,6'),
 	('p1', '13'),
-	('p2', '0')
+	('sorted_example', '''\
+[]
+[[]]
+[[[]]]
+[1,1,3,1,1]
+[1,1,5,1,1]
+[[1],[2,3,4]]
+[1,[2,[3,[4,[5,6,0]]]],8,9]
+[1,[2,[3,[4,[5,6,7]]]],8,9]
+[[1],4]
+[[2]]
+[3]
+[[4,4],4,4]
+[[4,4],4,4,4]
+[[6]]
+[7,7,7]
+[7,7,7,7]
+[[8,7,6]]
+[9]\
+'''),
+	('divider_indices_csv', '10,14'),
+	('p2', '140')
 ])]
 
 Packet = int | list['Packet']
@@ -74,7 +97,7 @@ def cmp(packet1, packet2):
 
 	return -1
 
-def ro_pair_indices(ip: str) -> int:
+def ro_pair_indices(ip: str) -> Iterator[int]:
 	for i, (packet1, packet2) in enumerate(parse(ip), start=1):
 		if cmp(packet1, packet2) == -1:
 			#print(i, ':', packet1, '<=', packet2)
@@ -86,5 +109,26 @@ def ro_pair_indices_csv(ip: str) -> str:
 def p1(ip: str) -> int:
 	return sum(ro_pair_indices(ip))
 
+DIVIDERS = ([[2]], [[6]])
+
+def sorted_packets(ip: str) -> int:
+	packets = list(it.chain.from_iterable(parse(ip)))
+	packets.extend(DIVIDERS)	
+	packets.sort(key=ft.cmp_to_key(cmp))
+	return packets
+
+def sorted_example(ip: str) -> str:
+	packets = sorted_packets(ip)
+	return '\n'.join(str(packet).replace(' ', '') for packet in packets)
+
+def divider_indices(ip: str) -> Iterator[int]:
+	for i, packet in enumerate(sorted_packets(ip), start=1):
+		if packet in DIVIDERS:
+			yield i
+
+def divider_indices_csv(ip: str) -> str:
+	return ','.join(map(str, divider_indices(ip)))
+
 def p2(ip: str) -> int:
-	return 0
+	di1, di2 = divider_indices(ip)
+	return di1 * di2
