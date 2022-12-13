@@ -1,6 +1,6 @@
 import functools as ft
 import itertools as it
-from typing import Iterator
+from typing import Iterable, Iterator
 
 test_inputs = [('example', '''\
 [1,1,3,1,1]
@@ -55,10 +55,46 @@ test_inputs = [('example', '''\
 
 Packet = int | list['Packet']
 
+def packet_lex(s) -> Iterator[str | int]:
+	digits = []
+
+	def flush():
+		if digits: yield int(''.join(digits))
+		digits.clear()
+
+	for c in s:
+		if c in ('[', ']'):
+			yield from flush()
+			yield c
+		elif c == ',':
+			yield from flush()
+		elif c.isdigit():
+			digits.append(c)
+		else:
+			assert False
+
+	yield from flush()
+
+def packet_parse(toks: Iterable[str | int]) -> Packet:
+	stack = [[]]
+
+	for tok in toks:
+		if tok == '[':
+			stack.append([])
+		elif tok == ']':
+			assert len(stack) > 1, 'unmatched closing bracket'
+			sub = stack.pop()
+			stack[-1].append(sub)
+		else:
+			stack[-1].append(tok)
+
+	assert len(stack) == 1, 'unmatched opening bracket'
+	return stack[0][0]
+
 def parse(ip) -> Iterator[tuple[Packet, Packet]]:
 	for block in ip.split('\n\n'):
 		packets = block.splitlines()
-		packets = [eval(packet) for packet in packets]
+		packets = [packet_parse(packet_lex(packet)) for packet in packets]
 		yield packets
 
 def cmp(packet1, packet2):
@@ -119,6 +155,7 @@ def sorted_packets(ip: str) -> int:
 
 def sorted_example(ip: str) -> str:
 	packets = sorted_packets(ip)
+	print(packets)
 	return '\n'.join(str(packet).replace(' ', '') for packet in packets)
 
 def divider_indices(ip: str) -> Iterator[int]:
