@@ -291,7 +291,7 @@ class AOC:
             with self.db:
                 self.db.execute('''
                     insert into "failed_submission" ("timestamp", "year", "day", "part")
-                    values (?, ?, ?, ?, ?)
+                    values (?, ?, ?, ?)
                 ''', (datetime.datetime.now().timestamp(), year, day, part))
         elif "You don't seem to be solving the right level" in body:
             print(
