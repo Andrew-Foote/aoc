@@ -3,6 +3,7 @@ from typing import Iterator
 
 test_inputs = [('example', '''\
 10
+20
 Sensor at x=2, y=18: closest beacon is at x=-2, y=15
 Sensor at x=9, y=16: closest beacon is at x=10, y=16
 Sensor at x=13, y=2: closest beacon is at x=15, y=3
@@ -19,12 +20,14 @@ Sensor at x=14, y=3: closest beacon is at x=15, y=3
 Sensor at x=20, y=1: closest beacon is at x=15, y=3\
 ''', [
 	('p1', '26'),
-	('p2', '0')
+	('distress_beacon', '(14, 11)'),
+	('p2', '56000011')
 ])]
 
-def parse(ip: str) -> tuple[int, list[tuple[complex, complex]]]:
+def parse(ip: str) -> tuple[int, int, list[tuple[complex, complex]]]:
 	lines = iter(ip.splitlines())
 	y0 = int(next(lines))
+	M = int(next(lines))
 	data = []
 
 	for line in lines:
@@ -32,14 +35,14 @@ def parse(ip: str) -> tuple[int, list[tuple[complex, complex]]]:
 		sx, sy, bx, by = map(int, re.match(fr'Sensor at x={fr}, y={fr}: closest beacon is at x={fr}, y={fr}', line).groups())
 		data.append((complex(sx, sy), complex(bx, by)))
 
-	return y0, data
+	return y0, M, data
 
 def manhattan_dist(z1: complex, z2: complex) -> int:
 	return int(abs(z2.real - z1.real) + abs(z2.imag - z1.imag))
 
 def p1(ip: str) -> str:
 	# manually edit the update to insert 2000000 here
-	y0, data = parse(ip)
+	y0, _, data = parse(ip)
 	excluded = set()
 
 	for sensor, beacon in data:
@@ -81,5 +84,107 @@ def p1(ip: str) -> str:
 
 	return len(excluded)
 
+def distress_beacon_dumb(ip: str) -> tuple[int, int]:
+	_, M, data = parse(ip)
+
+	# The distress beacon is at the unique point (x, y) where 0 <= x <= M, 0 <= y <= m and (x, y)
+	# is not detectable by any sensor, i.e. for all sensor-beacon pairs (sx, sy), (bx, by), we have
+	#
+	#   d((x, y), (sx, sy)) <= d((bx, by) - (sx, sy))
+	#
+	# and (x, y) != (bx, by).
+
+	for x in range(M + 1):
+		for y in range(M + 1):
+			#print(x, y)
+			for sensor, beacon in data:
+				sx = int(sensor.real)
+				sy = int(sensor.imag)
+				bx = int(beacon.real)
+				by = int(beacon.imag)
+				d = abs(bx - sx) + abs(by - sy)
+				d2 = abs(x - sx) + abs(y - sy)
+				#print(f'  {sensor=}, {beacon=}, d(sensor, beacon)={d}, d(sensor, (x, y))={d2}', end = '... ')
+
+				if d2 <= d:
+					#print('could be detected')
+					break
+				else:
+					pass
+					#print('cannot be detected')
+			else:
+				return (x, y)
+
+	raise ValueError('could not find')
+
+def dist(z: complex, w: complex) -> int:
+	return abs(int(z.real) - int(w.real)) + abs(int(z.imag) - int(w.imag))
+
+def diamond(centre: complex, radius: int) -> Iterator[complex]:
+	p = centre - radius * 1j
+
+	for d in ((1 + 1j, -1 + 1j, -1 - 1j, 1 - 1j)):
+		assert dist(p, centre) == radius, (p, centre, dist(p, centre), radius)
+		yield p
+
+		while True:
+			p += d
+
+			if p.real == centre.real or p.imag == centre.imag:
+				break
+
+			assert dist(p, centre) == radius, (p, centre, dist(p, centre), radius)
+			yield p
+
+def distress_beacon(ip: str) -> tuple[int, int]:
+	_, M, data = parse(ip)
+
+	# The distress beacon is at the unique point (x, y) where 0 <= x <= M, 0 <= y <= m and (x, y)
+	# is not detectable by any sensor, i.e. for all sensor-beacon pairs (sx, sy), (bx, by), we have
+	#
+	#   d((x, y), (sx, sy)) > d((bx, by) - (sx, sy))
+	#
+	# Since it is the unique such point, and M > 1, at least one (in fact, two) of the adjacent
+	# points will be on the edge of the detection range of a sensor. So it suffices to check just
+	# the points 1 out from each of those detection ranges. For each sensor, we can go over each of
+	# those points, and check if it is within the detection range of any of the other sensors. If
+	# it isn't, we've found the distress beacon.
+	#
+	# Given a sensor (sx, sy) and beacon (bx, by), the perimeter we need to check is the set of all
+	# points (x, y) such that
+	#
+	# |x - sx| + |y - sy| = r  where r = |bx - sx| + |by - sy| + 1.
+	# 
+	# Visually this looks like a diamond around (sx, sy) where the corners have an x- or y-
+	# coordinate equal to sx or sy and are at a distance of r from (sx, sy). So we can generate
+	# those points by starting at, say, (sx, sy - r), repeatedly adding (1, 1) till we get to
+	# (sx + r, sy), and so on.
+
+	possible = None
+
+	for sensor, beacon in data:
+		r = dist(sensor, beacon) + 1
+
+		for p in diamond(sensor, r):
+			if 0 <= p.real <= M and 0 <= p.imag <= M:
+				#print(f'{p=}')
+				detectable = False
+
+				for sensor2, beacon2 in data:
+					dps = dist(p, sensor2)
+					dbs = dist(beacon2, sensor2)
+
+					if dps <= dbs:
+						#print(f'  detectable by {sensor2=}, {beacon2=}, {dps=}, {dbs=}')
+						detectable = True
+						break
+					else:
+						pass
+						#print(f'  not detectable by {sensor2=}, {beacon2=}, {dps=}, {dbs=}')
+
+				if not detectable:
+					return int(p.real), int(p.imag)
+
 def p2(ip: str) -> int:
-	return 0
+	x, y = distress_beacon(ip)
+	return x * 4000000 + y
