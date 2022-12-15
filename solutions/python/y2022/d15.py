@@ -136,6 +136,20 @@ def diamond(centre: complex, radius: int) -> Iterator[complex]:
 			assert dist(p, centre) == radius, (p, centre, dist(p, centre), radius)
 			yield p
 
+def detectable(p: complex, data: list[tuple[complex, complex]]) -> bool:
+	for sensor, beacon in data:
+		dps = dist(p, sensor)
+		dbs = dist(beacon, sensor)
+
+		if dps <= dbs:
+			#print(f'  detectable by {sensor=}, {beacon=}, {dps=}, {dbs=}')
+			return True
+		else:
+			pass
+			#print(f'  not detectable by {sensor=}, {beacon=}, {dps=}, {dbs=}')
+
+	return False
+
 def distress_beacon(ip: str) -> tuple[int, int]:
 	_, M, data = parse(ip)
 
@@ -160,29 +174,12 @@ def distress_beacon(ip: str) -> tuple[int, int]:
 	# those points by starting at, say, (sx, sy - r), repeatedly adding (1, 1) till we get to
 	# (sx + r, sy), and so on.
 
-	possible = None
-
 	for sensor, beacon in data:
 		r = dist(sensor, beacon) + 1
 
 		for p in diamond(sensor, r):
 			if 0 <= p.real <= M and 0 <= p.imag <= M:
-				#print(f'{p=}')
-				detectable = False
-
-				for sensor2, beacon2 in data:
-					dps = dist(p, sensor2)
-					dbs = dist(beacon2, sensor2)
-
-					if dps <= dbs:
-						#print(f'  detectable by {sensor2=}, {beacon2=}, {dps=}, {dbs=}')
-						detectable = True
-						break
-					else:
-						pass
-						#print(f'  not detectable by {sensor2=}, {beacon2=}, {dps=}, {dbs=}')
-
-				if not detectable:
+				if not detectable(p, data):
 					return int(p.real), int(p.imag)
 
 def p2(ip: str) -> int:
