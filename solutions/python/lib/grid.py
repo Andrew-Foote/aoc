@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import itertools as it
 from typing import Callable, Generic, Iterable, Iterator, Self, Type, TypeVar
 
@@ -19,17 +19,12 @@ class Rect(Region):
 	bottom: int
 	left: int
 
-	def __init__(self: Self, top: int, right: int, bottom: int, left: int) -> None:
-		if top > bottom:
+	def __post_init__(self: Self) -> None:
+		if self.top > self.bottom:
 			raise ValueError(f'bottom ({bottom}) exceeds top ({top})')
 
-		if left > right:
+		if self.left > self.right:
 			raise ValueError(f'left ({left}) exceeds right ({right})')
-
-		self.top = top
-		self.right = right
-		self.bottom = bottom
-		self.left = left
 
 	@property
 	def width(self: Self) -> int:
@@ -91,7 +86,7 @@ class Path(Region):
 	def __init__(self: Self, points: Iterable[complex]) -> None:
 		self.points = list(points)
 
-		if not points:
+		if not self.points:
 			raise ValueError('path cannot be empty')
 
 		dupe_indices = []
@@ -166,3 +161,22 @@ class Grid(Generic[T]):
 
 	def __setitem__(self, p: complex, v: T) -> None:
 		self.rows[int(p.imag - self.origin.imag)][int(p.real - self.origin.real)] = v
+
+@dataclass
+class DefaultGrid(Generic[T]):
+	"""An infinite grid whose values outside of a finite region are computed by a callback."""
+
+	default: Callable[[complex], T]
+	entries: dict[complex, T] = field(default_factory=lambda: {})
+
+	def __getitem__(self, p: complex) -> T:
+		try:
+			return self.entries[p]
+		except KeyError:
+			return self.default(p)
+
+	def __setitem__(self, p: complex, v: T) -> None:
+		self.entries[p] = v
+
+	def rect(self):
+		return Rect.bounding(self.entries.keys())

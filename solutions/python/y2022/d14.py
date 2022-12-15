@@ -1,7 +1,8 @@
+from collections import defaultdict
 from enum import Enum
 import itertools as it
 from typing import Iterator
-from solutions.python.lib.grid import Grid, Path, Rect
+from solutions.python.lib.grid import DefaultGrid, Grid, Path, Rect
 from solutions.python.lib.digits import digits
 
 test_inputs = [('example', '''\
@@ -24,7 +25,7 @@ test_inputs = [('example', '''\
 9 #########.\
 '''),
 	('p1', '24'),
-	('p2', '0')
+	('p2', '93')
 ])]
 
 def parse_paths(ip: str) -> Iterator[Path]:
@@ -38,10 +39,12 @@ def parse_paths(ip: str) -> Iterator[Path]:
 
 		yield Path(points)
 
+SAND_SOURCE_POS = 500 + 0j
+
 class Tile(Enum):
 	AIR = '.'
 	ROCK = '#'
-	SOURCE = '+'
+	SAND_SOURCE = '+'
 	FALLING_SAND = '~'
 	RESTING_SAND = 'o'
 
@@ -49,7 +52,7 @@ def parse_grid(ip: str) -> Grid[Tile]:
 	paths = list(parse_paths(ip))
 	
 	rect = Rect.bounding(it.chain(
-		[complex(500, 0)],
+		[SAND_SOURCE_POS],
 		it.chain.from_iterable(path.points for path in paths)
 	))
 
@@ -59,8 +62,8 @@ def parse_grid(ip: str) -> Grid[Tile]:
 	def tile(z):
 		if z in rock_locs:
 			return Tile.ROCK
-		elif z == 500:
-			return Tile.SOURCE
+		elif z == SAND_SOURCE_POS:
+			return Tile.SAND_SOURCE
 		else:
 			return Tile.AIR
 
@@ -77,7 +80,7 @@ def grid_pic(grid: Grid[Tile]) -> str:
 			+ [str(digits(rect.right)[place])]
 		)
 
-		chars[500 - rect.left] = str(digits(500)[place])
+		chars[int(SAND_SOURCE_POS.real) - rect.left] = str(digits(int(SAND_SOURCE_POS.real))[place])
 		prefix = ' ' * (len(digits(rect.bottom)) + 1)
 		lines.append(prefix + ''.join(chars))
 
@@ -105,7 +108,7 @@ def p1(ip: str) -> int:
 	rect = grid.rect()
 
 	for i in it.count():
-		sand_pos = 500 + 0j
+		sand_pos = SAND_SOURCE_POS
 
 		while True:
 			for d in SAND_FALL_DIRS:
@@ -137,8 +140,74 @@ def p1(ip: str) -> int:
 				# input()
 				break
 
-def floor(grid: Grid[Tile]) -> int:
-	return grid.bottom + 2
+def grid_pic2(grid: DefaultGrid[Tile]) -> str:	
+	rect = grid.rect()
+	lines = []
+
+	for place in range(len(digits(rect.right)) - 1, -1, -1):
+		chars = (
+			[str(digits(rect.left).get(place, ' '))]
+			+ [' '] * (rect.width - 2)
+			+ [str(digits(rect.right)[place])]
+		)
+
+		chars[int(SAND_SOURCE_POS.real) - rect.left] = str(digits(int(SAND_SOURCE_POS.real))[place])
+		prefix = ' ' * (len(digits(rect.bottom)) + 1)
+		lines.append(prefix + ''.join(chars))
+
+	for y in range(rect.top, rect.bottom + 1):
+		chars = []
+
+		for x in range(rect.left, rect.right + 1):
+			chars.append(grid[complex(x, y)].value)
+
+		prefix = str(y) + ' ' * (len(digits(rect.bottom)) - len(str(y)) + 1)
+		lines.append(prefix + ''.join(chars))
+
+	# print()
+	# print('\n'.join(lines))
+	# print()
+	return '\n'.join(lines)
 
 def p2(ip: str) -> int:
-	return 0
+	paths = list(parse_paths(ip))
+	rocks = set(it.chain.from_iterable(paths))
+	floor = Rect.bounding((SAND_SOURCE_POS, *rocks)).bottom + 2
+
+	def base_grid(z: complex) -> Tile:
+		if z.imag == floor:
+			return Tile.ROCK
+		else:
+			return Tile.AIR
+
+	grid = DefaultGrid(base_grid)
+	grid[SAND_SOURCE_POS] = Tile.SAND_SOURCE
+
+	for path in paths:
+		for point in path:
+			grid[point] = Tile.ROCK
+
+	for i in it.count():
+		sand_pos = 500 + 0j
+
+		while True:
+			for d in SAND_FALL_DIRS:
+				new_pos = sand_pos + d
+
+				if grid[new_pos] == Tile.AIR:
+					if grid[sand_pos] == Tile.FALLING_SAND:
+						grid[sand_pos] = Tile.AIR
+
+					grid[new_pos] = Tile.FALLING_SAND
+					sand_pos = new_pos
+					break
+			else:
+				if sand_pos == SAND_SOURCE_POS:
+					return i + 1
+
+				grid[sand_pos] = Tile.RESTING_SAND
+				# print()
+				# print(grid_pic2(grid))
+				# print()
+				# input()
+				break
