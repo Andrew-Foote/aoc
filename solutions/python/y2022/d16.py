@@ -141,6 +141,9 @@ def p1(ip: str) -> int:
 	return maximal_additional_pressure_yield(0, 'AA', frozenset())
 
 def p2(ip: str) -> int:
+	from contextlib import redirect_stdout
+	import io
+
 	valves = parse(ip)
 	valve_children = lambda valve_name: valves[valve_name].tunnels
 
@@ -149,11 +152,19 @@ def p2(ip: str) -> int:
 		for valve_name in valves.keys()
 	}
 
-	@ft.cache
+	# can we bound the return value of maximal_additional_pressure_yield above?
+	# indeed, we should be able to: the only additional yields we can get are those
+	# by opening the remaining values. so if we just add all those flow rate sup,
+	# that's certainly an upper bound
+
+	_manual_cache = {}
+
 	def maximal_additional_pressure_yield(
 		ticks: int, self_valve: str, ele_valve: str, open_valves: frozenset[str]
 	) -> int:
-		def options_for(cur_valve: str):
+		#print(f'calculating MAPY for {ticks=}, {self_valve=}, {ele_valve=}, {open_valves=}')
+
+		def options_for(cur_valve: str, open_valves: frozenset[str]=open_valves):
 			options = []
 
 			if ticks < TICKS_TILL_ERUPTION - 1:
@@ -173,19 +184,79 @@ def p2(ip: str) -> int:
 
 			return options
 
-		options = [
-			self_immreturn + ele_immreturn + maximal_additional_pressure_yield(
-				ticks + 1, new_self_valve, new_ele_valve,
-				open_valves | new_self_open_valves | new_ele_open_valves
-			)
-			for self_immreturn, new_self_valve, new_self_open_valves in options_for(self_valve)
-			for ele_immreturn, new_ele_valve, new_ele_open_valves in options_for(ele_valve)
-			if new_self_open_valves.isdisjoint(new_ele_open_valves)
-		]
+		if open_valves.issuperset(valves.keys()):
+			return 0
 
-		if options:
-			return max(options)
+		self_options = options_for(self_valve)
+		ele_options = options_for(ele_valve)
 
-		return 0
+		if not self_options:
+			if not ele_options:
+				return 0
 
-	return maximal_additional_pressure_yield(4, 'AA', 'AA', frozenset())
+		if (ticks, self_valve, ele_valve, open_valves) in _manual_cache:
+			return _manual_cache[ticks, self_valve, ele_valve, open_valves]
+
+		#print(f'cache size: {len(_manual_cache)}')
+
+		if self_options and not ele_options:
+			ele_options.append((0, ele_valve, frozenset()))
+
+		if ele_options and not self_options:
+			self_options.append((0, ele_valve, frozenset()))
+
+		cmax = 0
+
+		for self_immreturn, new_self_valve, new_self_open_valves in self_options:
+			for ele_immreturn, new_ele_valve, new_ele_open_valves in ele_options:
+				if new_self_open_valves.isdisjoint(new_ele_open_valves):
+					new_open_valves = open_valves | new_self_open_valves | new_ele_open_valves
+
+					#print(f'  option: self: {self_valve} -> {new_self_valve}, ele: {ele_valve} -> {new_ele_valve}, new open valves: {",".join(new_open_valves)}')
+
+					#with redirect_stdout(io.StringIO()) as f:
+					immbenefit = self_immreturn + ele_immreturn
+
+					# try an upper bound on the benefit, so we can hopefully ignore some candidates
+					# without computing the whole additional pressure yield
+					benefit_ub = immbenefit + (
+						sum(
+							valves[vn].flow_rate for vn in valves.keys()
+							if vn not in new_open_valves
+						) * (TICKS_TILL_ERUPTION - (ticks + 1))
+					)
+
+					if immbenefit + benefit_ub > cmax:
+						benefit = immbenefit + maximal_additional_pressure_yield(
+							ticks + 1, new_self_valve, new_ele_valve,
+							open_valves | new_open_valves
+						)
+
+						if benefit > cmax:
+							cmax = benefit
+					# else:
+					# 	print('benefit paid off')
+
+					# op = f.getvalue()
+
+					# for line in op.splitlines():
+						#print(f'  | {line}')
+
+					#print(f'  calculated benefit: {benefit}')
+
+		# options = [
+		# 	self_immreturn + ele_immreturn + maximal_additional_pressure_yield(
+		# 		ticks + 1, new_self_valve, new_ele_valve,
+		# 		open_valves | new_self_open_valves | new_ele_open_valves
+		# 	)
+		# 	for self_immreturn, new_self_valve, new_self_open_valves in options_for(self_valve)
+		# 	for ele_immreturn, new_ele_valve, new_ele_open_valves in options_for(ele_valve, open_valves | new_self_open_valves)
+		# ]
+
+		#print(options)
+
+		_manual_cache[ticks, self_valve, ele_valve, open_valves] = cmax
+		return cmax
+
+	stupid_valves = {valve_name for valve_name, valve in valves.items() if valve.flow_rate == 0}
+	return maximal_additional_pressure_yield(4, 'AA', 'AA', frozenset(stupid_valves))
