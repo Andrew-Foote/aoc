@@ -75,12 +75,14 @@ def p1(ip: str) -> str:
 		#   sx - r <= x <= sx + r.
 
 		r = abs(bx - sx) + abs(by - sy) - abs(y0 - sy)
-		s = set(range(sx - r, sx + r + 1))
 
-		if by == y0:
-			s.remove(bx)
+		if r >= 0:
+			s = set(range(sx - r, sx + r + 1))
 
-		excluded.update(s)
+			if by == y0:
+				s.remove(bx)
+
+			excluded.update(s)
 
 	return len(excluded)
 
@@ -181,6 +183,28 @@ def distress_beacon(ip: str) -> tuple[int, int]:
 			if 0 <= p.real <= M and 0 <= p.imag <= M:
 				if not detectable(p, data):
 					return int(p.real), int(p.imag)
+
+def distress_beacon_hypothetical(ip: str) -> tuple[int, int]:
+	# The previous solution is fast enough to give an answer for the real input in ~15 seconds but
+	# that's still too slow for my liking. I think we must be able to do better by taking advantage
+	# of the fact that each undetectable point has to be adjacent to as many points on the edge of
+	# a detectable range as there are adjacent points in the box (the "box" being the one with top
+	# left (0, 0) and bottom right (M, M)). So:
+	# 
+	# - If the point is in the corner of the box, it has to be adjacent to two points on the edge
+	#   of a detectable range. But they could be from the same detectable range.
+	# - Otherwise, it has to be adjcent to *three* points on the edge of a detectable range. Two of
+	#   those will be on opposite sides, and therefore cannot possibly be within the same
+	#   detectable range.
+	#
+	# This suggests what might be a more efficient strategy. First, check whether any of the four
+	# corners of the box are undetectable. If not, we know the undetectable point has to be in the
+	# intersection of two detectable-range-outer-boundaries. Can we efficiently enumerate the
+	# points in such an intersection? Just taking the two diamonds as hash-sets and intersecting
+	# them probably wouldn't lead to any gain in efficiency....
+	#
+	# TODO
+	pass
 
 def p2(ip: str) -> int:
 	x, y = distress_beacon(ip)
