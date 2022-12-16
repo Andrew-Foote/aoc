@@ -24,8 +24,9 @@ TICKS_TILL_ERUPTION = 30
 
 @dataclass
 class Valve:
+	name: str
 	flow_rate: int
-	tunnels: list[int]
+	tunnels: list[str]
 
 class ActionKind(Enum):
 	OPEN = 0
@@ -104,16 +105,20 @@ class State:
 		for action in self.actions():
 			yield self.apply(action)
 
-def parse(ip: str) -> Iterator[Valve]:
+def parse(ip: str) -> dict[str, Valve]:
+	r = {}
+
 	for line in ip.splitlines():
-		flow_rate, tunnels_s = re.match(
-			r'Valve [A-Z]{2} has flow rate=(\d+); '
+		name, flow_rate, tunnels_s = re.match(
+			r'Valve ([A-Z]{2}) has flow rate=(\d+); '
 			r'tunnels? leads? to valves? ([A-Z]{2}(?:, [A-Z]{2})*)',
 			line
 		).groups()
 
-		tunnels = [ord(vn[0]) - ord('A') for vn in tunnels_s.split(', ')]
-		yield Valve(int(flow_rate), tunnels)
+		tunnels = tunnels_s.split(', ')
+		r[name] = Valve(name, int(flow_rate), tunnels)
+
+	return r
 
 def p1(ip: str) -> int:
 	# 
@@ -146,7 +151,7 @@ def p1(ip: str) -> int:
 
 	# We are currently standing at valve AA (0)
 
-	valves = list(parse(ip))
+	valves = parse(ip)
 	state = State(valves, 0, 0, set())
 
 	# if we start "backwards"
@@ -177,9 +182,9 @@ def p1(ip: str) -> int:
 	def maximal_additional_pressure_yield_dumb(state):
 		nonlocal depth
 		ticks, cur_valve_i, open_valves = state
-		#print(' ' * depth + f'{ticks=}, {cur_valve_i=}, {open_valves=}', end='')
-		#input()
-		#print()
+		# print(' ' * depth + f'{ticks=}, {cur_valve_i=}, {open_valves=}', end='')
+		# input()
+		# print()
 
 		# waiting will always give us 0 additional pressure beyond what is already "baked in"
 		m = 0
@@ -198,7 +203,7 @@ def p1(ip: str) -> int:
 				depth -= 1
 
 				if open_returns > m:
-					#print(' ' * depth + f'would be better to open the current valve (valve {cur_valve_i}), giving {open_returns} returns')
+					# print(' ' * depth + f'would be better to open the current valve (valve {cur_valve_i}), giving {open_returns} returns')
 					m = open_returns
 
 			for valve_i in valves[cur_valve_i].tunnels:
@@ -209,19 +214,38 @@ def p1(ip: str) -> int:
 				depth -= 1
 
 				if move_returns > m:
-					#print(' ' * depth + f'would be better to move to valve {valve_i}, giving {move_returns} returns')
+					# print(' ' * depth + f'would be better to move to valve {valve_i}, giving {move_returns} returns')
 					m = move_returns
 
-		#print(' ' * depth + f'best returns: {m}')
+		# print(' ' * depth + f'best returns: {m}')
 		return m
 
-	# return maximal_additional_pressure_yield_dumb((0, 0, frozenset()))
+	# return maximal_additional_pressure_yield_dumb((0, 'AA', frozenset()))
 
-	def maximal_additional_pressure_yield(ticks: int, cur_valve_i: int, open_valves: frozenset[int], dead_valves: frozenset[int]) -> int:
+	def descendant_valves(valve_i: str) -> frozenset[str]:
+		visited = {valve_i}
+		stack = [iter(valves[valve_i].tunnels)]
+
+		while stack:
+			try:
+				cur = next(stack[-1])
+			except StopIteration:
+				del stack[-1]
+			else:
+				if cur not in visited:
+					visited.add(cur)
+					stack.append(iter(valves[cur].tunnels))
+
+		return frozenset(visited)
+
+	cached_descendant_valves = {i: descendant_valves(i) for i in valves.keys()}
+
+	@ft.cache
+	def maximal_additional_pressure_yield(ticks: int, cur_valve_i: str, open_valves: frozenset[str]) -> int:
 		m = 0
 
 		if ticks < TICKS_TILL_ERUPTION:
-			if cur_valve_i not in open_valves:
+			if cur_valve_i not in open_valves and valves[cur_valve_i].flow_rate:
 				open_returns = (
 					valves[cur_valve_i].flow_rate * (TICKS_TILL_ERUPTION - (ticks + 1))
 					+ maximal_additional_pressure_yield(ticks + 1, cur_valve_i, open_valves | {cur_valve_i})
@@ -230,8 +254,48 @@ def p1(ip: str) -> int:
 				if open_returns > m:
 					m = open_returns
 
-				# should we kill it as well?
+			for valve_i in valves[cur_valve_i].tunnels:
+				if valve_i in open_valves and cached_descendant_valves[valve_i].issubset(open_valves):
+					continue
+
+				move_returns = maximal_additional_pressure_yield(ticks + 1, valve_i, open_valves)
+
+				if move_returns > m:
+					m = move_returns
+
+		return m
+
+	# @ft.cache
+	# def maximal_additional_pressure_yield(ticks: int, cur_valve_i: str, open_valves: frozenset[str], dead_valves: frozenset[str]) -> int:
+	# 	m = 0
+
+	# 	if ticks < TICKS_TILL_ERUPTION:
+	# 		if cur_valve_i not in open_valves:
+	# 			new_open_valves = open_valves | {cur_valve_i}
 				
+	# 			if descendant_valves(cur_valve_i).issubset(new_open_valves):
+	# 				new_dead_valves = dead_valves | {cur_valve_i}
+	# 			else:
+	# 				new_dead_valves = dead_valves
+
+	# 			open_returns = (
+	# 				valves[cur_valve_i].flow_rate * (TICKS_TILL_ERUPTION - (ticks + 1))
+	# 				+ maximal_additional_pressure_yield(ticks + 1, cur_valve_i, new_open_valves, new_dead_valves)
+	# 			)
+
+	# 			if open_returns > m:
+	# 				m = open_returns
+
+	# 		for valve_i in valves[cur_valve_i].tunnels:
+	# 			if valve_i in dead_valves:
+	# 				continue
+
+	# 			move_returns = maximal_additional_pressure_yield(ticks + 1, valve_i, open_valves, dead_valves)
+
+	# 			if move_returns > m:
+	# 				m = move_returns
+
+	# 	return m
 
 		# it's pointless to go to any valve which is:
 		# (a) already open
@@ -241,6 +305,11 @@ def p1(ip: str) -> int:
 
 		# so let's go through the open valves and check if they have any descendants that are not-open
 		# hm, that's going to be slow
+		# instead, easiest thing to do would probably be to precalculate the descendant-sets beforehand?
+		# then we can just check, for each open valve, whether its descendant-set is a subset of the open-valve-set
+
+
+	return maximal_additional_pressure_yield(0, 'AA', frozenset())
 
 	# max_benefit = -1
 
