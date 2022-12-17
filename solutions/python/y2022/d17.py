@@ -40,12 +40,9 @@ def rockgen():
 		]
 
 def parse(ip: str) -> None:
-	def gen():
-		while True:
-			for c in ip:
-				yield c	
-
-	return gen()
+	while True:
+		for c in ip.strip():
+			yield c	
 
 WIDTH = 7
 
@@ -91,28 +88,29 @@ def runsim(rocks, jets):
 		while True:
 			# jet mvoe
 			jet = next(jets)
-			print(f'jet: {jet}')
+			#print(f'jet: {jet}')
 
 			if jet == '<':
 				new_rockpos = (rockpos[0] - 1, rockpos[1])	
 			elif jet == '>':
 				new_rockpos = (rockpos[0] + 1, rockpos[1])
+			else:
+				assert False, jet
 
 			# go over all the coords within the rock...
 			for partpos in rock_coords(rock, new_rockpos):
 				if not (0 <= partpos[0] < 7 and partpos[1] < 0 and partpos not in grid):
 					# can't move
-					print('cannot move from jet')
+					#print('cannot move from jet')
 					break
 			else:
-				print(f'moved due to jet to {new_rockpos}')
+				#print(f'moved due to jet to {new_rockpos}')
 				rockpos = new_rockpos
 
 			# down move
 			new_rockpos = (rockpos[0], rockpos[1] + 1)
 
 			finished_falling = False
-			hit_wall = False
 
 			# again go over all coords within the rock...
 			for partpos in rock_coords(rock, new_rockpos):
@@ -121,24 +119,21 @@ def runsim(rocks, jets):
 					# rock has fallen
 					finished_falling = True
 					break
-				elif not (0 <= partpos[0] < 7):
-					hit_wall = True
+			else:
+				#print(f'moved further down to {new_rockpos}')
+				rockpos = new_rockpos
 
 			if finished_falling:
 				print(f'the rock landed at {rockpos}')
 				for partpos in rock_coords(rock, rockpos):
+					assert partpos not in grid
 					grid[partpos] = '#'
 
-				print(gridpic(grid))
-				input()
+				#print(gridpic(grid))
+				#input()
 				
 				yield grid
 				break
-			elif hit_wall:
-				pass
-			else:
-				print(f'moved further down to {new_rockpos}')
-				rockpos = new_rockpos
 
 def get_tower_height(grid):
 	if not grid:
@@ -152,7 +147,9 @@ def p1(ip: str) -> int:
 	gridstates = runsim(rocks, jet_pat)
 	list(it.islice(gridstates, 2021))
 	grid = next(gridstates)
+	print(gridpic(grid))
 	return get_tower_height(grid)
+	# 3225 is too high
 
 def p2(ip: str) -> int:
 	return 0
