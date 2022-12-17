@@ -188,6 +188,22 @@ class AOC:
             'User-Agent': self.user_agent
         }
 
+    def sync_input(self, year: int, day: int) -> str:
+        dir_path = Path('input') / str(year)
+        dir_path.mkdir(parents=True, exist_ok=True)
+        input_path = dir_path / f'{day}.txt'
+
+        if input_path.exists():
+            with input_path.open('r', encoding='utf-8') as f:
+                content = f.read()
+
+                with self.db:
+                    self.db.execute('''
+                        insert into "input" ("year", "day", "content")
+                        values (?, ?, ?) on conflict do update
+                        set "content" = "excluded"."content"
+                    ''', (year, day, content))
+
     @ft.cache
     def input(self, year: int, day: int) -> str:
         # try to get it from the DB first
@@ -440,6 +456,7 @@ if __name__ == '__main__':
     parser.add_argument('-y', '--year', type=int)
     parser.add_argument('-d', '--day', type=int)
     parser.add_argument('-p', '--part', type=int)
+    parser.add_argument('-s', '--sync-input', action='store_true')
     args = parser.parse_args()
 
     method_name = args.method
@@ -471,6 +488,10 @@ if __name__ == '__main__':
         day = args.day
 
     aoc = AOC()
+
+    if args.sync_input:
+        print(f'Syncing input for year {year}, day {day} from filesystem.')
+        aoc.sync_input(year, day)
 
     if args.part is None:
         if aoc.method_completed(method_name, year, day, 1):
