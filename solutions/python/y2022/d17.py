@@ -8,7 +8,7 @@ test_inputs = [('example', '''\
 >>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>\
 ''', [
 	('p1', '3068'),
-	('p2', '0')
+	('p2', '1514285714288')
 ])]
 
 def rockgen():
@@ -75,7 +75,7 @@ def runsim(rocks, jets):
 
 	while True:
 		rock = next(rocks)
-		print(f'this rock is falling: {rock}')
+		#print(f'this rock is falling: {rock}')
 		#print(f'grid: {grid}')
 
 		# the floor will be 0
@@ -83,7 +83,8 @@ def runsim(rocks, jets):
 
 		rockbotgrounder = -get_tower_height(grid)
 		rockpos = (2, rockbotgrounder - 3 - rockheight(rock))
-		print(f'initial pos: {rockpos}')
+		
+		#print(f'initial pos: {rockpos}')
 
 		while True:
 			# jet mvoe
@@ -124,7 +125,7 @@ def runsim(rocks, jets):
 				rockpos = new_rockpos
 
 			if finished_falling:
-				print(f'the rock landed at {rockpos}')
+				#print(f'the rock landed at {rockpos}')
 				for partpos in rock_coords(rock, rockpos):
 					assert partpos not in grid
 					grid[partpos] = '#'
@@ -147,9 +148,63 @@ def p1(ip: str) -> int:
 	gridstates = runsim(rocks, jet_pat)
 	list(it.islice(gridstates, 2021))
 	grid = next(gridstates)
-	print(gridpic(grid))
+	#print(gridpic(grid))
 	return get_tower_height(grid)
 	# 3225 is too high
 
+def rockgen1():
+	yield ['####']
+
+	yield [
+		'.#.',
+		'###',
+		'.#.'
+	]
+
+	yield [
+		'..#',
+		'..#',
+		'###'
+	]
+
+	yield [
+		'#',
+		'#',
+		'#',
+		'#'
+	]
+
+	yield [
+		'##',
+		'##'
+	]
+
+def parse1(ip: str) -> None:
+	for c in ip.strip():
+		yield c	
+
+def p1lim(ip: str, lim: int) -> int:
+	rocks = rockgen()
+	jet_pat = parse(ip)
+	gridstates = runsim(rocks, jet_pat)
+	list(it.islice(gridstates, lim))
+	grid = next(gridstates)
+	return get_tower_height(grid)
+
 def p2(ip: str) -> int:
-	return 0
+	# the pattern will repeat eventually?
+
+	rocks = list(rockgen1())
+	jet_pat = list(parse1(ip))
+
+	m = len(rocks) * len(jet_pat)
+	print(m)
+	# it should repeat after this many cycles
+
+	h_after_m = p1lim(ip, m)
+	print(h_after_m)
+	nreps, rem = divmod(1_000_000_000_000, m)
+	print(nreps, rem)
+	h = nreps * h_after_m
+	print(h)
+	return h + p1lim(ip, rem)
