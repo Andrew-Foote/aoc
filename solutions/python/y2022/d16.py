@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import functools as ft
+import itertools as it
 import re
 from solutions.python.lib import graph
 
@@ -26,6 +27,14 @@ class Valve:
 	name: str
 	flow_rate: int
 	tunnels: list[str]
+
+@dataclass
+class State:
+	ticks: int
+	occupied: tuple[str, ...]
+	opened: frozenset[str]
+
+
 
 def parse(ip: str) -> dict[str, Valve]:
 	r = {}
@@ -140,7 +149,7 @@ def p1(ip: str) -> int:
 
 	return maximal_additional_pressure_yield(0, 'AA', frozenset())
 
-def p2(ip: str) -> int:
+def p2_pain(ip: str) -> int:
 	from contextlib import redirect_stdout
 	import io
 
@@ -260,3 +269,75 @@ def p2(ip: str) -> int:
 
 	stupid_valves = {valve_name for valve_name, valve in valves.items() if valve.flow_rate == 0}
 	return maximal_additional_pressure_yield(4, 'AA', 'AA', frozenset(stupid_valves))
+
+def p2(ip: str) -> int:
+	# lifting an idea from reddit
+
+	valves = parse(ip)
+	valve_children = lambda valve_name: valves[valve_name].tunnels
+
+	valve_descendants = {
+		valve_name: frozenset(graph.dfs(valve_name, valve_children))
+		for valve_name in valves.keys()
+	}
+
+	@ft.cache
+	def maximal_additional_pressure_yield(
+		ticks: int, cur_valve: str, open_valves: frozenset[str]
+	) -> int:
+		def options_for(cur_valve: str):
+			options = []
+
+			if ticks < TICKS_TILL_ERUPTION - 1:
+				if cur_valve not in open_valves: #and valves[cur_valve].flow_rate:
+					options.append((
+						valves[cur_valve].flow_rate * (TICKS_TILL_ERUPTION - (ticks + 1)),
+						cur_valve,
+						frozenset({cur_valve})
+					))
+
+			if ticks < TICKS_TILL_ERUPTION - 2:
+				for valve in valves[cur_valve].tunnels:
+					# if valve_descendants[valve].issubset(open_valves):
+					# 	continue
+
+					options.append((0, valve, frozenset()))
+
+			return options
+
+		options = [
+			self_immreturn + maximal_additional_pressure_yield(
+				ticks + 1, new_self_valve,
+				open_valves | new_self_open_valves
+			)
+			for self_immreturn, new_self_valve, new_self_open_valves in options_for(cur_valve)
+		]
+
+		if options:
+			return max(options)
+
+		return 0
+
+	valve_set = frozenset(valves.keys())
+	zero_valves = frozenset({valve_name for valve_name, valve in valves.items() if valve.flow_rate == 0})	
+	nonzero_valves = valve_set - zero_valves
+	
+	ssets = list(map(frozenset, it.chain.from_iterable(
+		it.combinations(nonzero_valves, r) for r in range(len(nonzero_valves) + 1)
+	)))
+
+	therealmax = 0
+	thelen = len(ssets) // 2
+
+	for i, self_set in enumerate(ssets[:thelen]):
+		ele_set = nonzero_valves - self_set
+		self_max = maximal_additional_pressure_yield(4, 'AA', ele_set | zero_valves)
+		ele_max = maximal_additional_pressure_yield(4, 'AA', self_set | zero_valves)
+		maximal_additional_pressure_yield.cache_clear()
+		themax = self_max + ele_max
+		print(f'{i}/{thelen}', themax, ';', self_set, ';', ele_set)
+
+		if themax > therealmax:
+			therealmax = themax
+
+	return therealmax
