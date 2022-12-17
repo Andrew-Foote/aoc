@@ -11,6 +11,30 @@ test_inputs = [('example', '''\
 	('p2', '1514285714288')
 ])]
 
+ROCKS = [
+	['####'],
+	[
+		'.#.',
+		'###',
+		'.#.'
+	],
+	[
+		'..#',
+		'..#',
+		'###'
+	],
+	[
+		'#',
+		'#',
+		'#',
+		'#'
+	],
+	[
+		'##',
+		'##'
+	]
+]
+
 def rockgen():
 	while True:
 		yield ['####']
@@ -39,6 +63,9 @@ def rockgen():
 			'##'
 		]
 
+def parsejets(ip: str) -> list[str]:
+	return list(ip.strip())	
+
 def parse(ip: str) -> None:
 	while True:
 		for c in ip.strip():
@@ -57,7 +84,10 @@ def rock_coords(rock, rockpos):
 
 def gridpic(grid):
 	miny = min((0, *(y for x, y in grid.keys())))
-	maxy = max((0, *(y for x, y in grid.keys())))
+
+	if grid: maxy = max((y for x, y in grid.keys()))
+	else: maxy = 0
+
 	lines = []
 
 	for y in range(miny, maxy + 1):
@@ -130,9 +160,24 @@ def runsim(rocks, jets):
 					assert partpos not in grid
 					grid[partpos] = '#'
 
-				#print(gridpic(grid))
-				#input()
-				
+				# we can purge all bits from the grid that are no longer relevant
+				# for each x from 0 to 6, find the min y occupied by a rock.
+				# we can ignore any parts of the grid below the max of all those ys.
+
+				ymins = [min((0, *(
+					y for x, y in grid.keys()
+					if x == x0 and grid[x, y] == '#'
+				))) for x0 in range(7)]
+
+				ylim = max(ymins)
+				keystoremove = [(x, y) for x, y in grid.keys() if y > ylim]
+
+				for k in keystoremove:
+					del grid[k]
+
+				# print(gridpic(grid))
+				# input()
+
 				yield grid
 				break
 
@@ -191,20 +236,85 @@ def p1lim(ip: str, lim: int) -> int:
 	grid = next(gridstates)
 	return get_tower_height(grid)
 
+def normgridstate(gs):
+	y0 = max(y for x, y in gs.keys())
+
+	return {
+		(x, y - y0): v
+		for (x, y), v
+		in gs.items()
+	}
+
 def p2(ip: str) -> int:
-	# the pattern will repeat eventually?
+	# the pattern will repeat eventually?	
+	jetlist = parsejets(ip)
 
-	rocks = list(rockgen1())
-	jet_pat = list(parse1(ip))
+	rock_i = 0
+	jet_i = 0
 
-	m = len(rocks) * len(jet_pat)
-	print(m)
-	# it should repeat after this many cycles
+	def rockgen_here():
+		nonlocal rock_i
 
-	h_after_m = p1lim(ip, m)
-	print(h_after_m)
-	nreps, rem = divmod(1_000_000_000_000, m)
-	print(nreps, rem)
-	h = nreps * h_after_m
-	print(h)
-	return h + p1lim(ip, rem)
+		while True:
+			rock = ROCKS[rock_i]
+			rock_i += 1
+
+			if rock_i >= len(ROCKS):
+				rock_i = 0
+
+			yield rock
+
+	def jetgen_here():
+		nonlocal jet_i
+
+		while True:
+			jet = jetlist[jet_i]
+			jet_i += 1
+
+			if jet_i >= len(jetlist):
+				jet_i = 0
+
+			yield jet
+
+	rocks4ever = rockgen_here()
+	jets4ever = jetgen_here()
+	gridstates = runsim(rocks4ever, jets4ever)
+	mstates = {}
+
+	for i in it.count():
+		grid = next(gridstates)
+		height = get_tower_height(grid)
+
+		mstate = (
+			rock_i, jet_i,
+			tuple(sorted(normgridstate(grid).items()))
+		)
+
+		if mstate in mstates:
+			# we found the period!
+			prev_i, height_before_period = mstates[mstate]
+			states_before_period = prev_i
+			period = i - prev_i
+			period_height_inc = height - height_before_period
+			break
+		else:
+			mstates[mstate] = (i, height)
+
+	# so height will be height_before_period + period_height_inc * T
+	# where T is how many periods we run it for
+
+	desired_generations = 1_000_000_000_000
+	desired_gens_after_period = desired_generations - states_before_period
+	q, r = divmod(desired_gens_after_period, period)
+
+	vv = height_before_period + q * period_height_inc 
+
+	curheight = height_before_period + period_height_inc
+
+	if r:
+		list(it.islice(gridstates, r - 1))
+		grid = next(gridstates)
+		rheight = get_tower_height(grid)
+
+		vv += rheight - curheight
+	return vv - 1
