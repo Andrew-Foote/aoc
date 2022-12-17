@@ -411,8 +411,8 @@ class AOC:
 
     def interpret_test_defs(self, year: int, day: int, test_defs: methodlib.TestDefs) -> None:
         with self.db:
-            #self.db.execute('delete from "test_answer" where "year" = ? and "day" = ?', (year, day))
-            #self.db.execute('delete from "test_facet" where "year" = ? and "day" = ?', (year, day))
+            self.db.execute('delete from "test_answer" where "year" = ? and "day" = ?', (year, day))
+            self.db.execute('delete from "test_facet" where "year" = ? and "day" = ?', (year, day))
 
             for i, (name, input_, facets) in enumerate(test_defs):
                 self.db.execute('''
@@ -423,7 +423,6 @@ class AOC:
                 ''', (year, day, name, i, input_))
 
                 for i, (facet, answer) in enumerate(facets):
-                    print(facet)
                     self.db.execute('''
                         insert into "test_facet" ("year", "day", "name", "index")
                         values (?, ?, ?, ?)

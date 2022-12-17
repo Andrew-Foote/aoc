@@ -1,6 +1,6 @@
 from enum import Enum
 import itertools as it
-from typing import Iterable, Iterator, NamedTuple, Self, Type
+from typing import Iterable, Iterator, NamedTuple, Self
 
 test_inputs = [('example', '''\
 A Y

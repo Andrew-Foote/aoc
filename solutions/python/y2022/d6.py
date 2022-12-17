@@ -18,8 +18,8 @@ test_inputs = [
 	])
 ]
 
-def f(ip: str, length: int) -> int:
-	queue = deque([], maxlen=length)
+def marker_start(ip: str, length: int) -> int:
+	queue: deque[str] = deque([], maxlen=length)
 
 	for i, c in enumerate(ip):
 		queue.append(c)
@@ -27,8 +27,10 @@ def f(ip: str, length: int) -> int:
 		if len(set(queue)) == length:
 			return i + 1
 
+	assert False
+
 def p1(ip: str) -> int:
-	return f(ip, 4)
+	return marker_start(ip, 4)
 
 def p2(ip: str) -> int:
-	return f(ip, 14)
+	return marker_start(ip, 14)

@@ -1,3 +1,9 @@
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+import functools as ft
+from typing import Iterable, Iterator, Optional, Self, Union
+from solutions.python.lib import graph
+
 test_inputs = [('example', '''\
 $ cd /
 $ ls
@@ -23,14 +29,25 @@ $ ls
 5626152 d.ext
 7214296 k\
 ''', [
+	('diagram', '''\
+- / (dir)
+  - a (dir)
+    - e (dir)
+      - i (file, size=584)
+    - f (file, size=29116)
+    - g (file, size=2557)
+    - h.lst (file, size=62596)
+  - b.txt (file, size=14848514)
+  - c.dat (file, size=8504156)
+  - d (dir)
+    - j (file, size=4060174)
+    - d.log (file, size=8033020)
+    - d.ext (file, size=5626152)
+    - k (file, size=7214296)\
+'''),
 	('p1', '95437'),
 	('p2', '24933642')
 ])]
-
-from collections import deque
-from dataclasses import dataclass
-import functools as ft
-from typing import Iterable, Iterator, Optional, Union
 
 def parse(ip: str) -> Iterator[tuple]:
 	lines = ip.splitlines()
@@ -46,44 +63,99 @@ def parse(ip: str) -> Iterator[tuple]:
 			size, fname = line.split()
 			yield ('size', int(size), fname)
 
-@dataclass
-class File:
-	name: str
-	parent: 'Dir'
-	size: int
+class FSObj(ABC):
+	@property
+	@abstractmethod
+	def name(self: Self) -> str:
+		...
+
+	@property
+	@abstractmethod
+	def children(self: Self) -> Iterator['FSObj']:
+		...
+
+	@property
+	@abstractmethod
+	def size(self: Self) -> int:
+		...
+
+	@abstractmethod
+	def diagram(self: Self, indent: int=0) -> str:
+		...
 
 @dataclass
-class Dir:
-	name: str
+class File(FSObj):
+	_name: str
+	parent: 'Dir'
+	_size: int
+
+	@property
+	def name(self: Self) -> str:
+		return self._name
+
+	@property
+	def children(self: Self) -> Iterator[FSObj]:
+		yield from ()
+
+	@property
+	def size(self: Self) -> int:
+		return self._size
+
+	def diagram(self: Self, indent: int=0) -> str:
+		return '  ' * indent + f'- {self.name} (file, size={self.size})'
+
+@dataclass
+class Dir(FSObj):
+	_name: str
 	parent: Optional['Dir']
-	children: list[Union[File, 'Dir']]
+	_children: list[FSObj]
+
+	@property
+	def name(self: Self) -> str:
+		return self._name
+
+	@property
+	def children(self: Self) -> Iterator[FSObj]:
+		yield from self._children
 
 	@ft.cached_property
-	def size(self) -> int:
+	def size(self: Self) -> int:
 		return sum(child.size for child in self.children)
 
-	def __getitem__(self, name: str) -> Union[File, 'Dir']:
+	def __getitem__(self: Self, name: str) -> FSObj:
 		for child in self.children:
 			if child.name == name:
 				return child
 
 		raise KeyError(name)
 
-	def add_dir(self, name: str) -> 'Dir':
+	def add_dir(self: Self, name: str) -> 'Dir':
 		try:
-			return self[name]
+			existing = self[name]
 		except KeyError:
 			new = Dir(name, self, [])
-			self.children.append(new)
+			self._children.append(new)
 			return new
+		else:
+			assert isinstance(existing, Dir)
+			return existing
 
-	def add_file(self, name: str, size: int) -> File:
+	def add_file(self: Self, name: str, size: int) -> File:
 		try:
-			return self[name]
+			existing = self[name]
 		except KeyError:
 			new = File(name, self, size)
-			self.children.append(new)
+			self._children.append(new)
 			return new
+		else:
+			assert isinstance(existing, File)
+			return existing
+
+	def diagram(self: Self, indent: int=0) -> str:
+		name = self.name or '/'
+		header = '  ' * indent + f'- {name} (dir)'
+		body = [child.diagram(indent + 1) for child in self.children]
+		return '\n'.join((header, *body))
 
 def makefs(cmds: Iterable[tuple]) -> Dir:
 	root: Dir = Dir('', None, [])
@@ -113,18 +185,21 @@ def makefs(cmds: Iterable[tuple]) -> Dir:
 
 	return root
 
-def iterdirs(root: Dir):
-	yield root
+def diagram(ip: str) -> str:
+	cmds = parse(ip)
+	root = makefs(cmds)
+	return root.diagram()
 
-	for child in root.children:
-		if isinstance(child, Dir):
-			yield from iterdirs(child)
+def dirsizes(root: Dir) -> Iterator[int]:
+	child_dirs = lambda node: filter(lambda child: isinstance(child, Dir), node.children)
+
+	for d in graph.dfs(root, child_dirs):
+		yield d.size
 
 def p1(ip: str) -> int:
 	cmds = parse(ip)
 	root = makefs(cmds)
-
-	return sum(dir_.size for dir_ in iterdirs(root) if dir_.size <= 100_000)
+	return sum(filter(lambda dirsize: dirsize <= 100_000, dirsizes(root)))
 
 def p2(ip: str) -> int:
 	cmds = parse(ip)
@@ -134,10 +209,4 @@ def p2(ip: str) -> int:
 	unused = total_space - used
 	required_unused = 30_000_000
 	necessary_to_delete = required_unused - unused
-
-	return min(
-		dir_.size
-		for dir_
-		in iterdirs(root)
-		if dir_.size >= necessary_to_delete
-	)
+	return min(filter(lambda dirsize: dirsize >= necessary_to_delete, dirsizes(root)))

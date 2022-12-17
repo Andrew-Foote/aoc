@@ -26,7 +26,7 @@ def compartments(ip: str) -> Iterator[tuple[str, str]]:
         halfway = len(line) // 2
         yield line[:halfway], line[halfway:]
 
-def first3_compartments_csv(ip: str) -> list[Iterator]:
+def first3_compartments_csv(ip: str) -> str:
     return joinlines(f'{c1},{c2}' for c1, c2 in it.islice(compartments(ip), 3))
 
 Rucksack = tuple[set[str], set[str]]
@@ -35,10 +35,10 @@ def rucksacks(ip: str) -> Iterator[Rucksack]:
     for c1, c2 in compartments(ip):
         yield set(c1), set(c2)
 
-def common_item(rucksack: Rucksack) -> list[int]:
-    isect = rucksack[0] & rucksack[1]
-    assert len(isect) == 1
-    return isect.pop()
+def common_item(rucksack: Rucksack) -> str:
+    items = rucksack[0] & rucksack[1]
+    assert len(items) == 1
+    return items.pop()
 
 def item_priority(item: str) -> int:
     if ord(item) >= ord('a'):
@@ -68,23 +68,19 @@ def rucksack_groups(rucksacks: Iterable[Rucksack]) -> Iterator[RucksackGroup]:
         current.append(rucksack)
 
         if len(current) == 3:
-            yield tuple(current)
+            g1, g2, g3 = current
+            yield g1, g2, g3
             current.clear()
 
-def rucksack_all_items(rucksack: Rucksack) -> set[str]:
-    return rucksack[0] | rucksack[1]
+def rucksack_items(rucksack: Rucksack) -> set[str]:
+    c1, c2 = rucksack
+    return c1 | c2
 
 def badge(rucksack_group: RucksackGroup) -> str:
     g1, g2, g3 = rucksack_group
-
-    isect = (
-        rucksack_all_items(g1)
-        & rucksack_all_items(g2)
-        & rucksack_all_items(g3)
-    )
-
-    assert len(isect) == 1
-    return isect.pop()
+    items = rucksack_items(g1) & rucksack_items(g2) & rucksack_items(g3)
+    assert len(items) == 1
+    return items.pop()
 
 def group_priority(rucksack_group: RucksackGroup) -> int:
     return item_priority(badge(rucksack_group))
