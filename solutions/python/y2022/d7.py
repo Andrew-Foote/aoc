@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import functools as ft
-from typing import Iterable, Iterator, Optional, Self, Union
+from typing import Iterable, Iterator, Optional, Self
 from solutions.python.lib import graph
 
 test_inputs = [('example', '''\

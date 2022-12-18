@@ -1,15 +1,12 @@
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-import itertools as it
-from typing import Callable, Generic, Iterable, Iterator, Self, Type, TypeVar
+from typing import Any, Callable, Generic, Iterable, Iterator, Optional, Self, Type, TypeVar
+from solutions.python.lib.gint import gint, gint_rect
 
-class Region(ABC):
-	@abstractmethod
-	def __contains__(self: Self, point: complex) -> bool:
-		"""Returns True if the region contains the given point."""
+# north-east-south-west (up-right-down-left) direction vectors
+NESW: tuple[gint, gint, gint, gint] = (gint(0, -1), gint(1, 0), gint(0, 1), gint(-1, 0))
 
 @dataclass
-class Line(Region):
+class Line:
 	"""A straight, un-directed line in the plane extending infinitely in both directions.
 
 	The attributes `x_coeff`, `y_coeff` and `const_coeff` give an equation for the line:
@@ -25,13 +22,13 @@ class Line(Region):
 	const_coeff: int
 
 	def __post_init__(self: Self) -> None:
-		if not (self.a or self.b):
+		if not (self.x_coeff or self.y_coeff):
 			raise ValueError('invalid line: both coefficients are zero')
 
 	def coeffs(self) -> tuple[int, int, int]:
 		return self.x_coeff, self.y_coeff, self.const_coeff
 
-	def __contains__(self: Self, p: complex) -> bool:
+	def __contains__(self: Self, p: gint) -> bool:
 		return self.x_coeff * p.real + self.y_coeff * p.imag == -self.const_coeff		
 
 	def __and__(self: Self, other: Self) -> Self | complex | None:
@@ -132,13 +129,16 @@ class Line(Region):
 		d = a * B - A * b
 		return complex((b * C - B * c) / d, (A * c - C * a) / d)
 
-	def __eq__(self: Self, other: Self) -> bool:
+	def __eq__(self: Self, other: object) -> bool:
 		"""Returns True if the two lines are the same as sets of points."""
 
-		return a * B == A * b and A * c == a * C and (
-			a != 0 or A != 0 or b * C == B * c
-		)
+		if not isinstance(other, Line):
+			return False
 
+		a, b, c = self.coeffs()
+		A, B, C = other.coeffs()
+
+		return a * B == A * b and A * c == a * C and (a != 0 or A != 0 or b * C == B * c)
 		#return isinstance(self & other, self.__class__)
 
 	def gradient(self: Self) -> float:
@@ -148,28 +148,31 @@ class Line(Region):
 		return -self.const_coeff / self.y_coeff
 		
 	@classmethod
-	def fromeq(cls: Type[Self], m: float, c: float) -> Self:
+	def fromeq(cls: Type[Self], m: int, c: int) -> Self:
 		# y = mx + c
 		# <==>
 		# -mx + y - c = 0
 		return cls(-m, 1, -c)
 
 	@classmethod
-	def from2points(cls: Type[Self], p0: complex, p1: complex) -> Self:
+	def from2points(cls: Type[Self], p0: gint, p1: gint) -> Self:
 		# y = y0 + (y1 - y0)/(x1 - x0) * (x - x0)
 		# <==>
 		# -(y1 - y0)/(x1 - x0) x + y + x0 (y1 - y0)/(x1 - x0) - y0 = 0
 		# <==>
 		# (y0 - y1)x + (x1 - x0)y + x0 (y1 - y0) - y0 (x1 - x0) = 0
 
-		x0, y0 = p0.real, p0.imag
-		x1, y1 = p1.real, p1.imag
+		x0, y0 = gint_rect(p0)
+		x1, y1 = gint_rect(p1)
 		dx = x1 - x0
 		dy = y1 - y0
+		# we should have a Gaussian integer type, eally
 		return cls(-dy, dx, x0 * dy - y0 * dx)
 
+		return cls(-dy, dx, p0.real * dy - p0.imag * dx)
+
 @dataclass
-class Rect(Region):
+class Rect:
 	"""A rectangular region in a grid.
 
 	The bounds are inclusive, i.e. a Rect whose top and bottom are the same is considered to
@@ -181,10 +184,10 @@ class Rect(Region):
 
 	def __post_init__(self: Self) -> None:
 		if self.top > self.bottom:
-			raise ValueError(f'bottom ({bottom}) exceeds top ({top})')
+			raise ValueError(f'bottom ({self.bottom}) exceeds top ({self.top})')
 
 		if self.left > self.right:
-			raise ValueError(f'left ({left}) exceeds right ({right})')
+			raise ValueError(f'left ({self.left}) exceeds right ({self.right})')
 
 	@property
 	def width(self: Self) -> int:
@@ -195,23 +198,23 @@ class Rect(Region):
 		return self.bottom - self.top + 1
 
 	@property
-	def top_left(self: Self) -> complex:
-		return complex(self.left, self.top)
+	def top_left(self: Self) -> gint:
+		return gint(self.left, self.top)
 
 	@property
-	def top_right(self: Self) -> complex:
-		return complex(self.right, self.top)
+	def top_right(self: Self) -> gint:
+		return gint(self.right, self.top)
 
 	@property
-	def bottom_right(self: Self) -> complex:
-		return complex(self.right, self.bottom)
+	def bottom_right(self: Self) -> gint:
+		return gint(self.right, self.bottom)
 
 	@property
-	def bottom_left(self: Self) -> complex:
-		return complex(self.left, self.bottom)
+	def bottom_left(self: Self) -> gint:
+		return gint(self.left, self.bottom)
 
 	@classmethod
-	def bounding(cls: Type[Self], points: Iterable[complex]) -> Self:
+	def bounding(cls: Type[Self], points: Iterable[gint]) -> Self:
 		iterator = iter(points)
 		first = next(iterator)
 
@@ -229,9 +232,9 @@ class Rect(Region):
 			elif p.imag > bottom:
 				bottom = p.imag
 
-		return cls(int(top), int(right), int(bottom), int(left))
+		return cls(top, right, bottom, left)
 
-	def __contains__(self: Self, point: complex) -> bool:
+	def __contains__(self: Self, point: gint) -> bool:
 		return self.left <= point.real <= self.right and self.top <= point.imag <= self.bottom
 
 	def __and__(self: Self, other: Self) -> Optional[Self]:
@@ -240,13 +243,18 @@ class Rect(Region):
 		except ValueError:
 			return None
 
+	def __iter__(self: Self) -> Iterator[gint]:
+		for y in range(self.height):
+			for x in range(self.width):
+				yield self.top_left + gint(x, y)
+
 @dataclass
-class Path(Region):
+class Path:
 	"""A path in a grid made up of rows and columns of tiles."""
 
-	points: list[complex]
+	points: list[gint]
 
-	def __init__(self: Self, points: Iterable[complex]) -> None:
+	def __init__(self: Self, points: Iterable[gint]) -> None:
 		self.points = list(points)
 
 		if not self.points:
@@ -264,10 +272,10 @@ class Path(Region):
 		for i in dupe_indices[::-1]:
 			del self.points[i]
 
-	def __contains__(self: Self, point: complex) -> bool:
+	def __contains__(self: Self, point: gint) -> bool:
 		return any(point in Rect.bounding((p, q)) for p, q in zip(self.points, self.points[1:]))
 
-	def __iter__(self: Self) -> Iterator[complex]:
+	def __iter__(self: Self) -> Iterator[gint]:
 		yield self.points[0]
 
 		for p, q in zip(self.points, self.points[1:]):
@@ -285,9 +293,9 @@ T = TypeVar('T')
 @dataclass
 class Grid(Generic[T]):
 	rows: list[list[T]]
-	origin: complex
+	origin: gint
 
-	def __init__(self: Self, rows: Iterable[Iterable[T]], origin: complex=0+0j) -> None:
+	def __init__(self: Self, rows: Iterable[Iterable[T]], origin: gint=gint()) -> None:
 		self.rows = [list(row) for row in rows]
 
 		if not self.rows:
@@ -307,38 +315,38 @@ class Grid(Generic[T]):
 		return len(self.rows)
 
 	def rect(self):
-		return Rect.bounding((self.origin, self.origin + complex(self.width - 1, self.height - 1)))
+		return Rect.bounding((self.origin, self.origin + gint(self.width - 1, self.height - 1)))
 
 	@classmethod
-	def fromrect(cls: Type[Self], rect: Rect, label: Callable[[complex], T]) -> Self:
+	def fromrect(cls: Type[Self], rect: Rect, label: Callable[[gint], T]) -> Self:
 		return cls(
 			(
-				(label(complex(x, y)) for x in range(rect.left, rect.right + 1))
+				(label(gint(x, y)) for x in range(rect.left, rect.right + 1))
 				for y in range(rect.top, rect.bottom + 1)
 			),
 			rect.top_left
 		)
 
-	def __getitem__(self, p: complex) -> T:
-		return self.rows[int(p.imag - self.origin.imag)][int(p.real - self.origin.real)]
+	def __getitem__(self, p: gint) -> T:
+		return self.rows[p.imag - self.origin.imag][p.real - self.origin.real]
 
-	def __setitem__(self, p: complex, v: T) -> None:
-		self.rows[int(p.imag - self.origin.imag)][int(p.real - self.origin.real)] = v
+	def __setitem__(self, p: gint, v: T) -> None:
+		self.rows[p.imag - self.origin.imag][p.real - self.origin.real] = v
 
 @dataclass
 class DefaultGrid(Generic[T]):
 	"""An infinite grid whose values outside of a finite region are computed by a callback."""
 
-	default: Callable[[complex], T]
-	entries: dict[complex, T] = field(default_factory=lambda: {})
+	default: Callable[[gint], T]
+	entries: dict[gint, T] = field(default_factory=lambda: {})
 
-	def __getitem__(self, p: complex) -> T:
+	def __getitem__(self, p: gint) -> T:
 		try:
 			return self.entries[p]
 		except KeyError:
 			return self.default(p)
 
-	def __setitem__(self, p: complex, v: T) -> None:
+	def __setitem__(self, p: gint, v: T) -> None:
 		self.entries[p] = v
 
 	def rect(self):

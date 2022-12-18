@@ -1,3 +1,9 @@
+import functools as ft
+import itertools as it
+import operator
+from solutions.python.lib.gint import gint
+from solutions.python.lib.grid import Grid, NESW, Rect
+
 test_inputs = [('example', '''\
 30373
 25512
@@ -5,79 +11,69 @@ test_inputs = [('example', '''\
 33549
 35390\
 ''', [
+	('interior_points_visible_csv', '1,1;2,1;1,2;3,2;2,3'),
 	('p1', '21'),
 	('p2', '8')
 ])]
 
+def is_visible(grid: Grid[int], z0: gint) -> bool:
+	rect = grid.rect()
+
+	h = grid[z0]
+
+	for d in NESW:
+		for i in it.count(1):
+			z = z0 + i * d
+
+			if z not in rect:
+				# visible in this direction, hence visible overall
+				return True
+
+			if grid[z] >= h:
+				# not visible in this direction, might be visible in others
+				break
+
+	# ok, not visible in any direction
+	return False
+
+def parse_grid(ip: str) -> Grid[int]:
+	return Grid([list(map(int, s)) for s in ip.splitlines()])
+
+def interior_points_visible_csv(ip: str) -> bool:
+	grid = parse_grid(ip)
+	rect = grid.rect()
+	interior = Rect(rect.top + 1, rect.right - 1, rect.bottom - 1, rect.left + 1)
+	points = []
+
+	for z in interior:
+		if is_visible(grid, z):
+			points.append(z)
+
+	return ';'.join(f'{z.real},{z.imag}' for z in points)
+
 def p1(ip: str) -> int:
-	grid = [list(map(int, s)) for s in ip.splitlines()]
-	h = len(grid)
-	w = len(grid[0])
-	assert all(len(row) == w for row in grid[1:])
-	trees = [(i, j) for i in range(h) for j in range(w)]
+	grid = parse_grid(ip)
+	return sum(1 for z in grid.rect() if is_visible(grid, z))
 
-	def is_visible(i: int, j: int) -> bool:
-		treeheight = grid[i][j]
+def score(grid: Grid[int], z0: gint) -> int:
+	rect = grid.rect()
+	h = grid[z0]
+	dists = {}
 
-		for d in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-			new_i = i
-			new_j = j
+	for d in NESW:
+		for i in it.count(1):
+			z = z0 + i * d
 
-			while True:
-				new_i = new_i + d[0]
-				new_j = new_j + d[1]
-				
-				if (
-					new_i < 0 or new_j < 0 
-					or new_i >= h or new_j >= w
-				):
-					# visible in this dir
-					return True
+			if z not in rect:
+				dists[d] = i - 1
+				break
+			
+			if grid[z] >= h:
+				dists[d] = i
+				break
 
-				if grid[new_i][new_j] >= treeheight:
-					# not visible in this dir
-					break
-
-		return False
-
-	return sum(1 for i, j in trees if is_visible(i, j))
+	return ft.reduce(operator.mul, dists.values())
 
 def p2(ip: str) -> int:
-	grid = [list(map(int, s)) for s in ip.splitlines()]
-	h = len(grid)
-	w = len(grid[0])
-	assert all(len(row) == w for row in grid[1:])
-	trees = [(i, j) for i in range(h) for j in range(w)]
-
-	def score(i: int, j: int) -> bool:
-		treeheight = grid[i][j]
-		dists = {}
-
-		for d in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-			new_i = i
-			new_j = j
-			k = 0
-
-			while True:
-				k += 1
-				new_i = i + d[0] * k
-				new_j = j + d[1] * k
-				#if (i, j) == (3, 2): print(d, k, new_i, new_j)
-				
-				if (
-					new_i < 0 or new_j < 0 
-					or new_i >= h or new_j >= w
-				):
-					# visible in this dir
-					dists[d] = k - 1
-					break
-
-				if grid[new_i][new_j] >= treeheight:
-					# not visible in this dir
-					dists[d] = k
-					break
-
-		#print(i, j, dists)
-		return dists[(0, 1)] * dists[(0, -1)] * dists[(1, 0)] * dists[(-1, 0)]
-
-	return max(score(i, j) for i, j in trees)
+	grid = parse_grid(ip)
+	return max(score(grid, z) for z in grid.rect())
