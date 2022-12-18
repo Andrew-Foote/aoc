@@ -1,7 +1,7 @@
 from collections import deque
 from collections.abc import Iterator
 import heapq
-from typing import Protocol, Self, TypeVar
+from typing import Generic, Protocol, Self, TypeVar
 
 _T = TypeVar('_T')
 
@@ -47,43 +47,73 @@ def bfs(root: _T, children: ChildGenerator[_T]) -> Iterator[_T]:
             yield node
             queue.append(iter(children(node)))
 
-# See https://11011110.github.io/blog/2013/12/17/stack-based-graph-traversal.html for information
-# on how to correctly implement `gdfs` which I always have to look up.
-#  
-def gdfs(root: _T, children: ChildGenerator[_T]) -> Iterator[_T]:
-    """Iterate over the nodes in a graph in depth-first order, visiting each node exactly once."""
-  
-    stack: list[Iterator[_T]] = [iter([root])]
-    visited: set[_T] = set()
+class gdfs(Generic[_T]):
+    """An iterator which visits each node in a graph exactly once, in depth-first order.
 
-    while stack:
-        try:
-            node: _T = next(stack[-1])
-        except StopIteration:
-            del stack[-1]
-        else:
-            if node not in visited:
-                yield node
-                visited.add(node)
-                stack.append(iter(children(node)))
+    The visited set is accessible as a public property of the iterator."""
+    stack: list[Iterator[_T]]
+    visited: set[_T]
 
-def gbfs(root: _T, children: ChildGenerator[_T]):
-    """Iterate over the nodes in a graph in breadth-first order, visiting each node exactly
-    once."""
+    def __init__(self: Self, root: _T, children: ChildGenerator[_T]) -> None:
+        self.stack = [iter([root])]
+        self.visited = set()
+        self.children = children
 
-    queue: deque[Iterator[_T]] = deque([iter([root])])
-    visited: set[_T] = set()
+    def __next__(self: Self) -> _T:
+        while True:
+            try:
+                children_iterator = self.stack[-1]
+            except IndexError:
+                raise StopIteration
 
-    while queue:
-        try:
-            node: _T = next(queue[-1])
-        except StopIteration:
-            del queue[-1]
-        else:
-            if node not in visited:
-                yield node
-                visited.add(node)
-                queue.appendleft(iter(children(node)))
+            try:
+                node = next(children_iterator)
+            except StopIteration:
+                del self.stack[-1]
+            else:
+                if node not in self.visited:
+                    break
+
+        self.visited.add(node)
+        self.stack.append(iter(self.children(node)))
+        return node
+
+    def __iter__(self: Self) -> Self:
+        return self
+
+class gbfs(Generic[_T]):
+    """An iterator which visits each node in a graph exactly once, in breadth-first order.
+
+    The visited set is accessible as a public property of the iterator."""
+    queue: deque[Iterator[_T]]
+    visited: set[_T]
+
+    def __init__(self: Self, root: _T, children: ChildGenerator[_T]) -> None:
+        self.queue = deque([iter([root])])
+        self.visited = set()
+        self.children = children
+
+    def __next__(self: Self) -> _T:
+        while True:
+            try:
+                children_iterator = self.queue[-1]
+            except IndexError:
+                raise StopIteration
+
+            try:
+                node = next(children_iterator)
+            except StopIteration:
+                del self.queue[-1]
+            else:
+                if node not in self.visited:
+                    break
+
+        self.visited.add(node)
+        self.queue.appendleft(iter(self.children(node)))
+        return node
+
+    def __iter__(self: Self) -> Self:
+        return self
 
 def dijkstra(root: _T, children: ChildGenerator[_T]):
     queue: list[_T] = [root]
@@ -99,7 +129,9 @@ def dijkstra(root: _T, children: ChildGenerator[_T]):
                 visited.add(child)
                 heapq.heappush(queue, child)
 
-def paradfs(root: _T, children: ChildGenerator[_T]):
+# Incorrect implementation of dfs with a visited set, left as a warning! See
+# https://11011110.github.io/blog/2013/12/17/stack-based-graph-traversal.html.
+def dfs_bad(root: _T, children: ChildGenerator[_T]):
     stack: list[_T] = [root]
     visited: set[_T] = {root}
 
