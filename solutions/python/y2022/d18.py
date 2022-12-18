@@ -1,6 +1,5 @@
 import itertools as it
 from typing import Iterator
-import numpy as np
 
 test_inputs = [('example1', '1,1,1\n2,1,1', [
     ('p1', 10),
@@ -24,11 +23,6 @@ test_inputs = [('example1', '1,1,1\n2,1,1', [
     ('p2', 58)
 ])]
 
-# if it was 2D
-# then for each square, we could just check how many of the four adjacent squares are
-#   non-squares
-# alternatively, we could go through the corners and 
-
 Cube = tuple[int, int, int]
 
 def adj(cube: Cube) -> Iterator[Cube]:
@@ -51,32 +45,6 @@ def p1(ip: str) -> int:
 
 def inbounds(cube: Cube, mx: int, my: int, mz: int) -> bool:
     return 0 <= cube[0] < mx and 0 <= cube[1] < my and 0 <= cube[2] < mz
-
-def adj_inbounds(cube: Cube) -> Iterator[Cube]:
-    for acube in adj(cube):
-        if inbounds(acube):
-            yield acube
-
-def is_reachable(cube: Cube, cubes: set[Cube], lbounds: Cube, ubounds: Cube) -> bool:
-    # a non-cube point is non-reachable
-    # if all adjacent points are either cubes or non-reachable
-    # and it is reachable if it's outside of the bounds
-
-    if cube in cubes:
-        return False
-
-    if (
-        cube[0] < lbounds[0] or cube[1] < lbounds[1] or cube[2] < lbounds[3]
-        or
-        cube[0] >= ubounds[0] or cube[1] >= ubounds[1] or cube[1] >= ubounds[3]
-    ):
-        return True
-
-    for acube in adj(cube):
-        if is_reachable(acube):
-            return True
-
-    return False
 
 def p2(ip: str) -> int:
     cubes = {tuple(map(int, line.split(','))) for line in ip.splitlines()}
