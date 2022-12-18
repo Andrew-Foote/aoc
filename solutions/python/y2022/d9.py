@@ -1,4 +1,6 @@
 from typing import Iterable, Iterator
+from solutions.python.lib.gint import gint
+from solutions.python.lib.grid import NESW, Rect
 
 test_inputs = [('example', '''\
 R 4
@@ -25,171 +27,151 @@ U 20\
 	('p2', '36')
 ])]
 
+DIRS = {'URDL'[i]: NESW[i] for i in range(4)}
+
 def parse(ip: str) -> Iterator[tuple[str, int]]:
 	for line in ip.splitlines():
-		ds, count = line.split(' ')
-		yield ds, int(count)
+		dir_s, count = line.split(' ')
+		yield DIRS[dir_s], int(count)
 
-DIRMAP = {
-	'R': (0, 1),
-	'U': (-1, 0),
-	'L': (0, -1),
-	'D': (1, 0)
-}
+def step(n: int, moves: Iterable[tuple[str, int]]) -> Iterator[list[gint]]:
+	knotpos = [gint()] * n
+	yield knotpos
 
-Point = tuple[int, int]
-
-def step(moves: Iterable[tuple[str, int]]) -> Iterator[tuple[Point, Point]]:
-	hpos = (0, 0)
-	tpos = (0, 0)
-
-	#print(hpos, tpos)
-	yield hpos, tpos
-
-	for ds, count in moves:
-		#print('move:', ds, count)
-		d1 = DIRMAP[ds]
-
+	for d0, count in moves:
 		for _  in range(count):
-			hpos = (hpos[0] + d1[0], hpos[1] + d1[1])
-			ydif = hpos[0] - tpos[0]
-			xdif = hpos[1] - tpos[1]
-			yunit = ydif // abs(ydif) if ydif else 0
-			xunit = xdif // abs(xdif) if xdif else 0
+			d = d0
 
-			if abs(ydif) > 1 or abs(xdif) > 1:
-				tpos = (tpos[0] + yunit, tpos[1] + xunit)
+			# print(diagram(n, knotpos))
+			# input()
 
-			yield hpos, tpos
-			#print(diagram(hpos, tpos))
-			#print()
-
-		# d = (d1[0] * count, d1[1] * count)
-		# print(d, end = ' : ')
-		# hpos = (hpos[0] + d[0], hpos[1] + d[1])
-
-		# ydif = hpos[0] - tpos[0]
-		# xdif = hpos[1] - tpos[1]
-		# print(ydif, xdif, end = ' : ')
-		# yunit = ydif // abs(ydif) if ydif else 0
-		# xunit = xdif // abs(xdif) if xdif else 0
-
-		# if abs(ydif) > 1 or abs(xdif) > 1:
-		# 	tpos = (tpos[0] + yunit * (abs(ydif) - 1), tpos[1] + xunit * (abs(xdif) - 1))
-
-		# print(hpos, tpos)
-		# print(diagram(hpos, tpos))
-		# yield hpos, tpos
-
-def diagram(hpos: Point, tpos: Point) -> str:
-	ymin = min(hpos[0], tpos[0], 0)
-	ymax = max(hpos[0], tpos[0], 0)
-	xmin = min(hpos[1], tpos[1], 0)
-	xmax = max(hpos[1], tpos[1], 0)
-
-	lines = []
-
-	for i in range(ymin, ymax + 1):
-		chars = []
-
-		for j in range(xmin, xmax + 1):
-			if (i, j) == hpos:
-				chars.append('H')
-			elif (i, j) == tpos:
-				chars.append('T')
-			else:
-				chars.append('.')
-
-		lines.append(''.join(chars))
-
-	return '\n'.join(lines)
-
-
-# 0 |B|
-# 1 |TH|
-# 2 |T H | -> | TH|
-# 3 | T H| -> |  TH|
-# 4 |  T H| -> |   TH|
-
-
-def p1(ip: str) -> int:
-	# num positions tail visited at least once
-	visited = set()
-
-	for hpos, tpos in step(parse(ip)):
-		visited.add(tpos)
-
-	return len(visited)
-
-def step2(moves: Iterable[tuple[str, int]]) -> Iterator[list[Point]]:
-	knotpos = [(0, 0) for _ in range(10)]
-	# head is knotpos[0], tail is knotpos[9]
-
-	#print(hpos, tpos)
-	#yield knotpos
-
-	for ds, count in moves:
-		#print('move:', ds, count)
-
-		for _  in range(count):
-			#print('nexstep')
-			d1 = DIRMAP[ds]
-	
 			for i, pos in enumerate(knotpos):
-				#print('knot number', i, 'currently at', pos)
-				knotpos[i] = (pos[0] + d1[0], pos[1] + d1[1])
-				#print('now at', knotpos[i])
+				knotpos[i] = pos + d
 
 				if i < len(knotpos) - 1:
-					#print('should next knot move?')
-					ydif = knotpos[i][0] - knotpos[i + 1][0]
-					xdif = knotpos[i][1] - knotpos[i + 1][1]
-					yunit = ydif // abs(ydif) if ydif else 0
-					xunit = xdif // abs(xdif) if xdif else 0
-					#print('ydif', ydif, 'xdif', xdif, 'yunit', yunit, 'xunit', xunit)
+					dif = knotpos[i] - knotpos[i + 1]
+					yunit = dif.imag // abs(dif.imag) if dif.imag else 0
+					xunit = dif.real // abs(dif.real) if dif.real else 0
+					d = gint(xunit, yunit) if abs(dif.real) > 1 or abs(dif.imag) > 1 else gint()
 
-					if abs(ydif) > 1 or abs(xdif) > 1:
-						d1 = (yunit, xunit)
-						#print('yes should move by', d1)
-					else:
-						d1 = (0, 0)
-
-			#print(diagram2(knotpos))
-			#input()
 			yield knotpos
 
-def diagram2(knotpos: list[Point]) -> str:
-	ymin = min(*(pos[0] for pos in knotpos), 0)
-	ymax = max(*(pos[0] for pos in knotpos), 0)
-	xmin = min(*(pos[1] for pos in knotpos), 0)
-	xmax = max(*(pos[1] for pos in knotpos), 0)
+def p1(ip: str) -> int:
+	return len({knotpos[-1] for knotpos in step(2, parse(ip))})
 
-	lines = []
+def p2(ip: str) -> int:
+	return len({knotpos[-1] for knotpos in step(10, parse(ip))})
 
-	for i in range(ymin, ymax + 1):
-		chars = []
+def diagram(n: int, knotpos: list[gint]) -> str:
+	rect = Rect.bounding((gint(), *knotpos))
+	lines = ['---']
 
-		for j in range(xmin, xmax + 1):
-			for k, pos in enumerate(knotpos):
-				print(pos)
-				if (i, j) == pos:
-					sk = str(k)
-					if sk == '0': sk = 'H'
-					if sk == '9': sk = 'T'
-					chars.append(sk)
+	for y in range(rect.top, rect.bottom + 1):
+		chars = ['|']
+		for x in range(rect.left, rect.right + 1):
+
+			for k, z in enumerate(knotpos):
+				if z == gint(x, y):
+					knot_s = str(k)
+					if knot_s == '0': knot_s = 'H'
+					if knot_s == str(n - 1): knot_s = 'T'
+					chars.append(knot_s)
 					break
 			else:
 				chars.append('.')
 
+			chars.append('|')
+
 		lines.append(''.join(chars))
+
+	lines.append('---')
 
 	return '\n'.join(lines)
 
-def p2(ip: str) -> int:
-	# num positions tail visited at least once
-	visited = set()
+if __name__ == '__main__':
+	n = 10
 
-	for knotpos in step2(parse(ip)):
-		visited.add(knotpos[9])
+	import sys
 
-	return len(visited)
+	with open('input/2022/9.txt') as f:
+		ip = f.read()
+
+	moves = parse(ip)
+	iterator = step(n, parse(ip))
+	knotpos = next(iterator)
+
+	rect = Rect(-60, 79, 59, -80)
+
+	import numpy as np
+	import sdl2
+	import sdl2.ext
+	import sdl2.ext.pixelaccess
+
+	sdl2.ext.init()
+	window = sdl2.ext.Window('Advent of Code Day 9 Animation', size=(rect.width * 5, rect.height * 5))
+
+	surface = window.get_surface()
+	view = sdl2.ext.pixelaccess.pixels2d(surface)
+
+	def knot_color(z, hpos):
+		for k, w in enumerate(knotpos):
+			if w == z + hpos:
+				brightness = 256 - k * 16
+				color = brightness
+				return color
+
+		# the middle of the screen will be hpos
+		# distance from 0
+		# n = int(abs(z + hpos))
+		# brightness = n // 4
+		# return brightness << 16 | brightness << 8 | brightness
+
+		if z + hpos == gint(10, 10):
+			return 0xff_00_00
+		else:
+			return 0
+
+	def knotpos_as_array():
+		hpos = knotpos[0]
+
+		return np.block([[
+			np.full((5, 5), knot_color(gint(x, y), hpos), dtype='uint32')
+			for y in range(rect.top, rect.bottom + 1)
+		] for x in range(rect.left, rect.right + 1)])
+
+	def do_update():
+		np.copyto(view, knotpos_as_array())
+
+	do_update()
+
+	window.show()
+
+	last_update_ticks = sdl2.SDL_GetTicks()
+	ticks = None
+	exhausted = False
+
+	TICKS_PER_UPDATE = 1
+	STEPS_PER_UPDATE = 1
+
+	while True:
+		events = sdl2.ext.get_events()
+
+		for event in events:
+			if event.type == sdl2.SDL_QUIT:
+				sys.exit()
+
+		if not exhausted:
+			ticks = sdl2.SDL_GetTicks()
+
+			if ticks - last_update_ticks > TICKS_PER_UPDATE:
+				for _ in range(STEPS_PER_UPDATE):
+					try:
+						knotpos = next(iterator)
+					except StopIteration:
+						exhausted = True
+						break
+
+				do_update()
+				last_update_ticks = ticks
+
+		window.refresh()

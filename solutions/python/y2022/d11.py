@@ -91,51 +91,6 @@ def p1(ip: str) -> int:
 	monkeys.sort(key=lambda monkey: monkey.inspect_count)
 	return monkeys[-1].inspect_count * monkeys[-2].inspect_count
 
-# @dataclass
-# class Worry(ABC):
-# 	@abstractmethod
-# 	def modulo(self, d: int) -> int:
-# 		...
-
-# @dataclass
-# class SimpWorry(ABC):
-# 	value: int
-
-# 	def modulo(self, d):
-# 		return self.value % d
-
-# @dataclass
-# class AddWorry(ABC):
-# 	base: Worry
-# 	addend: int
-
-# 	def modulo(self, d):
-# 		# a + b equiv c (mod d)
-# 		# iff
-# 		# a equiv c - b (mod d)
-# 		return (self.base.modulo(d) + self.addend) % d
-
-# @dataclass
-# class MulWorry(ABC):
-# 	base: Worry
-# 	muland: int
-
-# 	def modulo(self, d):
-# 		return (self.base.modulo(d) * self.muland) % d
-
-# @dataclass
-# class SquareWorry(ABC):
-# 	base: Worry
-
-# 	def modulo(self, d):
-# 		# given that a equiv c (mod d),
-# 		# solve for x in a^2 equiv x (mod d)
-# 		# a equiv c (mod d) means a = qd + c
-# 		# so a^2 = (qd + c)^2 = q^2 d^2 + 2qdc + c^2
-# 		#                     = (q^2 d + 2qc) d + c^2
-# 		# so x equiv c^2 (mod d)
-# 		return (self.base.modulo(d) ** 2) % d
-
 @dataclass
 class Worry:
 	rs: dict[int, int]

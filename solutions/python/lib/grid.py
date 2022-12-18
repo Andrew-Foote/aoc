@@ -166,10 +166,7 @@ class Line:
         x1, y1 = gint_rect(p1)
         dx = x1 - x0
         dy = y1 - y0
-        # we should have a Gaussian integer type, eally
         return cls(-dy, dx, x0 * dy - y0 * dx)
-
-        return cls(-dy, dx, p0.real * dy - p0.imag * dx)
 
 @dataclass
 class Rect:

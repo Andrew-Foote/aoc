@@ -1,0 +1,1 @@
+$env:PYTHONPATH=$env:PYTHONPATH+';.'; kernprof -lv solutions\python\y2022\d18.py

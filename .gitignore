@@ -6,3 +6,5 @@ settings.toml
 *.log
 db.sqlite
 input
+*.lprof
+*.prof

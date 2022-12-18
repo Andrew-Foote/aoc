@@ -71,3 +71,10 @@ def p2(ip: str) -> int:
             cubes.update(search.visited)
 
     return surface_area(cubes)
+
+if __name__ == '__main__':
+    with open('input/2022/18.txt') as f:
+        ip = f.read()
+
+    p1(ip)
+    p2(ip)
