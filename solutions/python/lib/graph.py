@@ -118,16 +118,16 @@ class gbfs(Generic[_T]):
 def dijkstra(root: _T, children: ChildGenerator[_T]):
     queue: list[_T] = [root]
     heapq.heapify(queue)
-    visited: set[_T] = {root}
+    # visited: set[_T] = {root}
 
     while queue:
         node: _T = heapq.heappop(queue)
         yield node
 
         for child in children(node):
-            if child not in visited:
-                visited.add(child)
-                heapq.heappush(queue, child)
+            # if child not in visited:
+                # visited.add(child)
+            heapq.heappush(queue, child)
 
 # Incorrect implementation of dfs with a visited set, left as a warning! See
 # https://11011110.github.io/blog/2013/12/17/stack-based-graph-traversal.html.
