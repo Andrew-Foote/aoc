@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 import functools as ft
 import math
 from typing import overload, TypeVar
@@ -118,3 +119,12 @@ class digits:
 
 def digit(n: int, place: int, b: int=10) -> int:
     return digits(n, b)[place]
+
+def int_from_digits_leading_first(ds: Iterable[int], b: int=10) -> int:
+    res = 0
+
+    for d in ds:
+        res *= b
+        res += d
+
+    return res

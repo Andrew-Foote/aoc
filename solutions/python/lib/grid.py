@@ -250,6 +250,19 @@ class Rect:
             for x in range(self.width):
                 yield self.top_left + gint(x, y)
 
+    def picture(self: Self, char: Callable[[gint], str]) -> str:
+        lines = []
+
+        for y in range(self.top, self.bottom + 1):
+            line = []
+
+            for x in range(self.left, self.right + 1):
+                line.append(char(gint(x, y)))
+
+            lines.append(''.join(line))
+
+        return '\n'.join(lines)
+
 @dataclass
 class Path:
     """A path in a grid made up of rows and columns of tiles."""
