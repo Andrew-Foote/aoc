@@ -24,7 +24,8 @@ Blueprint 2:
   Each geode robot costs 3 ore and 12 obsidian.\
 ''', [
     ('quality_levels_s', '9,24'),
-    ('p1', 33)
+    ('p1', 33),
+    ('max_geodes_s', '56,62')
 ])]
 
 class Resource(Enum):
@@ -211,5 +212,10 @@ def quality_levels_s(ip: str) -> str:
 def p1(ip: str) -> int:
     return sum(quality_levels(ip))
 
+def max_geodes_s(ip: str) -> str:
+    blueprints = parse(ip)
+    return ','.join(str(max_geodes(32, blueprint)) for blueprint in blueprints.values())
+
 def p2(ip: str) -> int:
-    return 0
+    blueprints = parse(ip)
+    return max_geodes(32, blueprints[1]) * max_geodes(32, blueprints[2]) * max_geodes(32, blueprints[3])
