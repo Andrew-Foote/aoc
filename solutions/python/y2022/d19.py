@@ -7,6 +7,9 @@ import re
 from typing import Self, Type
 from solutions.python.lib import graph
 
+# with blueprint 1, there is no point building more than 4 ore robots,
+# because the most anything costs is 4 ore, so just doing that allows you to get 4 ore per turn
+
 test_inputs = [('example', '''\
 Blueprint 1:
   Each ore robot costs 4 ore.
@@ -37,7 +40,10 @@ Blueprint = defaultdict[Resource, Counter[Resource]]
 def parse(ip: str) -> dict[int, Blueprint]:
     blueprints = {}
 
-    for blueprint_s in ip.split('\n\n'):
+    blueprint_blocks = ip.split('\n\n')
+    if len(blueprint_blocks) == 1: blueprint_blocks = ip.splitlines()
+
+    for blueprint_s in blueprint_blocks:
         m = re.match(r'Blueprint (\d+):', blueprint_s)
         assert m is not None
         blueprint_id, = m.groups()
@@ -59,16 +65,6 @@ def parse(ip: str) -> dict[int, Blueprint]:
 
     return blueprints
 
-# the nodes in our graph will be robot-minute pairs
-# 
-# e.g. considering blueprint 1 from the example:
-# the start node (not associated with any particular robot or minute)
-# goes to:
-#   ore robot on minute 4
-#   clay robot on minute 2
-#   (obsidian not immediately available)
-#   (geode not immediately available)
-
 @dataclass
 class State:
     minute: int
@@ -78,6 +74,64 @@ class State:
     @classmethod
     def initial(cls: Type[Self]) -> Self:
         return cls(0, Counter({Resource.ORE: 1}), Counter())
+
+    def wait(self: Self, minutes: int) -> Self:
+        dstash = Counter({resource: minutes * count for resource, count in self.robots.items()})
+        return self.__class__(self.minute + minutes, self.robots, self.stash + dstash)
+
+    def build(self: Self, blueprint: Blueprint, resource: Resource) -> Self:
+        cost = blueprint[resource]
+
+        if not self.stash >= cost:
+            raise ValueError(f'{resource.value} not buildable: {self}')
+
+        return self.__class__(
+            self.minute + 1,
+            self.robots + Counter({resource: 1}),
+            self.stash - cost + self.robots
+        )
+
+    def next_build_states(self: Self, max_minutes: int, blueprint: Blueprint) -> Iterator[Self]:
+        any_buildable = False
+
+        for resource in reversed(Resource):
+            # do we need to build any more of this robot?
+            if resource != Resource.GEODE:
+                max_robots_required = max(cost[resource] for cost in blueprint.values())
+                if self.robots[resource] >= max_robots_required: continue
+
+            cost = blueprint[resource]
+            #print(f'considering resource {resource.value}, which costs: {cost}')
+            robots_available = all(self.robots[cost_resource] >= 1 for cost_resource in cost)
+
+            if robots_available:
+                remaining_cost = cost - self.stash
+                #print(f'can build right now; remaining costs would be: {remaining_cost}')
+
+                # how many turns do we need to wait to satisfy this remaining cost?
+                minutes_required_per_resource = Counter({r: 0 for r in Resource})
+
+                for cost_resource, remaining_cost_for_this_resource in remaining_cost.items():
+                    #print(f'considering how to meet remaining cost of {remaining_cost_for_this_resource} for resource {cost_resource.value}')
+                    robot_count = self.robots[cost_resource]
+                    #print(f'we already have {robot_count} robots for this resource')
+                    q, r = divmod(remaining_cost_for_this_resource, robot_count)
+                    minutes_required_per_resource[cost_resource] = q + 1 if r else q
+                    #print(f'so it would take {minutes_required_per_resource[cost_resource]} minutes')
+
+                minutes_required = max(minutes_required_per_resource.values())
+
+                if self.minute + minutes_required <= max_minutes - 1:
+                    any_buildable = True
+                    yield self.wait(minutes_required).build(blueprint, resource)
+                    #print(f'ok we should build a {resource.value} robot')
+            else:
+                pass
+                #print('robots for these resources not built yet')
+
+        if not any_buildable:
+            if self.minute < 24:
+                yield self.wait(24 - self.minute)
 
     def next_states(self: Self, max_minutes: int, blueprint: Blueprint) -> Iterator[Self]:
         if self.minute < max_minutes:
@@ -106,28 +160,41 @@ class State:
         olbs = other.benefit_lower_bounds(24)
         slbso = tuple(slbs[resource] for resource in RESOURCE_PRIORITY)
         olbso = tuple(olbs[resource] for resource in RESOURCE_PRIORITY)
-        return slbso <= olbso
+        return slbso > olbso
 
     # def eventual_benefit_lower_bound(self: Self, max_minutes: int) -> int:
     #     return self.stash[Resource.GEODE] + self.robots[Resource.GEODE] * (max_minutes - self.minute)
 
+    def eventual_benefit_upper_bound(self: Self, max_minutes: int) -> int:
+        n = max_minutes - self.minute
+        return self.stash[Resource.GEODE] + self.robots[Resource.GEODE] * (max_minutes - self.minute) + n * (n + 1) // 2
+
 def max_geodes(max_minutes: int, blueprint: Blueprint) -> int:
     res = 0
 
-    print()
-    print('Searching with blueprint {}'.format({ r1.value: {r2.value: cost for r2, cost in costs.items()} for r1, costs in blueprint.items() }))
-    input()
+    # print()
+    # print('Searching with blueprint {}'.format({ r1.value: {r2.value: cost for r2, cost in costs.items()} for r1, costs in blueprint.items() }))
+    # input()
 
-    for state in graph.dfs(
+    def children(state):
+        for s in state.next_build_states(max_minutes, blueprint):
+            if s.eventual_benefit_upper_bound(max_minutes) > res:
+                yield s
+
+    for i, state in enumerate(graph.dfs(
         State.initial(),
-        lambda state: state.next_states(max_minutes, blueprint)
-    ):
-        if state.minute == 24:
-            print(state)
+        children
+        #lambda state: state.next_build_states(max_minutes, blueprint)
+    )):
+
+        if state.minute >= 24:
+            # print(state)
             geodes = state.stash[Resource.GEODE]
 
             if geodes > res:
                 res = geodes
+
+            # print(res, i)
 
     return res
 
