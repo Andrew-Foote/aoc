@@ -11,7 +11,7 @@ test_inputs = [('example', '''\
 0
 4\
 ''', [
-    #('mix_stages_csv', '1,2,-3,3-2,0,4;2,1,-3,3,-2,0,4;1,-3,2,3,-2,0,4;1,2,3,-2,-3,0,4;1,2,-2,-3,0,3,4;1,2,-3,0,3,4,-2;1,2,-3,0,3,4,-2;1,2,-3,4,0,3,-2'),
+    ('mix_stages_csv', '1,2,-3,3,-2,0,4;2,1,-3,3,-2,0,4;1,-3,2,3,-2,0,4;1,2,3,-2,-3,0,4;1,2,-2,-3,0,3,4;1,2,-3,0,3,4,-2;1,2,-3,0,3,4,-2;1,2,-3,4,0,3,-2'),
     ('grove_coords_csv', '4,-3,2'),
     ('p1', 3),
     ('p2', 0)
@@ -19,8 +19,7 @@ test_inputs = [('example', '''\
 4
 0\
 ''', [
-    ('mix_stages_csv', '4,0;4,0;4,0'),
-    ('p1', 1)
+    ('mix_stages_csv', '4,0;4,0;4,0')
 ])]
 
 @dataclass
@@ -29,6 +28,9 @@ class File:
 
     def __init__(self: Self, ls: Iterable[int]) -> None:
         self.ls = list(ls)
+
+    def __len__(self: Self) -> int:
+        return len(self.ls)
 
     def __iter__(self: Self) -> Iterator[int]:
         yield from self.ls
@@ -91,7 +93,7 @@ class File:
 
                 # assert v[vlen - r2:] == self.ls[:r2]
                 self.ls[:r2] = v[vlen - r2:]
-                print(self.ls)
+                # print(self.ls)
         else:
             assert isinstance(v, int)
             self.ls[i % len_] = v
@@ -102,6 +104,12 @@ class File:
     def copy(self: Self) -> Self:
         return self.__class__(self.ls.copy())
 
+    def __delitem__(self: Self, i: int) -> None:
+        del self.ls[i % len(self)]
+
+    def insert(self: Self, i: int, v: int) -> None:
+        self.ls.insert(i, v)
+
 def parse(ip: str) -> list[int]:
     return File(map(int, ip.splitlines()))
 
@@ -109,48 +117,74 @@ def mix_stages(f: File) -> Iterator[File]:
     fc = f.copy()
     yield fc
 
+    f = fc.ls.copy()
+
     for v in fc.ls:
-        print()
-        print(v, f)
-        input()
-        i = f.index(v) # will be 0
-        new_i = i + v # will be 4
+        i = f.index(v) # this doesn't work cuz thingies are unique
+        new_i = i + v
+        # print(f'{v=}, {i=}, {new_i=}')
+        # print(f)
+        # input()
 
-        if i < new_i:
-            # ..., f[i],     f[i + 1], ..., f[new_i - 1], f[new_i], ...
-            # ..., f[i + 1], f[i + 2], ..., f[new_i],     f[i],     ... 
-            
-            #f[i], f[i + 1:new_i], f[new_i] = f[i + 1], f[i + 2:new_i + 1], v
-            
-            # f[0], f[1:4], f[4] = f[1], f[2:5], f[0]
-
-            # f[1] should be 0, f[2:5] should be 4,0,4, f[0] should be 4
-
-            f[i:new_i] = f[i + 1:new_i + 1]
-            # f[0:4] = f[1:5]  -> f[:] = [0,4], f[:] = [0,4]
-            f[new_i] = v
-            # f[4] = 4   -> f[0] = 4
-
-
-            #f[i:new_i + 1] = f[i + 1:new_i + 1] + [v]
-
-            #         |
-            # 4,0,4,0,4,0,4,0,4,0
-            #         |
-            # 4,  4,  4,  4,  4,
-            #   0,  0,  0,  0,  0
-            #           |
-            #   4,  4,  4,  4,  4
-            # 0,  0,  0,  0,  0,
-            #           |
-            # 0,4,0,4,0,4,0,4,0,4
-
-
-
+        if new_i > i:
+            for j in range(i, new_i):
+                j0 = j % len(f)
+                j1 = (j + 1) % len(f)
+                f[j0], f[j1] = f[j1], f[j0]
         elif new_i < i:
-            # ..., f[new_i], f[new_i + 1], ..., f[i - 1], f[i],     ...
-            # ..., f[i],     f[new_i],     ..., f[i - 2], f[i - 1], ...
-            f[new_i], f[new_i + 1:i], f[i] = v, f[new_i:i - 1], f[i - 1]
+            for j in range(i, new_i, -1):
+                j0 = j % len(f)
+                j1 = (j - 1) % len(f)
+                f[j0], f[j1] = f[j1], f[j0]
+
+
+    # # -11553 is wrong
+    # # 1999 is too low
+    # # 6841 is wrong
+
+    # for v in fc.ls:
+    #     # print()
+    #     # print(v, f)
+    #     i = f.index(v)
+    #     new_i = (i + v) % len(f)
+    #     # print(f'del at {i}, ins at {new_i}')
+    #     # input()
+
+    #     if i < new_i:
+
+    #         # ..., f[i - 1], f[i], f[i + 1], ..., f[new_i - 1], f[new_i], ...
+    #         del f[i]
+    #         # print('ibt', f)
+    #         # ..., f[i - 1], f[i + 1], ..., f[new_i - 1], f[new_i], ...
+    #         f.insert(new_i - (v < 0), v)
+    #         # ..., f[i - 1], f[i + 1], ..., f[new_i - 1], f[i], f[new_i], ...
+
+    #         #f.insert(new_i + 1, v) # ?
+
+    #         # sadly this approach doesn't work:
+    #         # ..., f[i],     f[i + 1], ..., f[new_i - 1], f[new_i], ...
+    #         # ..., f[i + 1], f[i + 2], ..., f[new_i],     f[i],     ... 
+            
+    #         #f[i], f[i + 1:new_i], f[new_i] = f[i + 1], f[i + 2:new_i + 1], v
+            
+    #         # because if you're shifting by more than length, e.g. if your list is just [4, 0], you get
+    #         # ..., 4, 0, 4, 0, 4, 0, 4, _, 0, ...
+    #         # ..., 4, 0, _, 0, 4, 0, 4, 4, 0, ...
+    #         # which is incorrect: all the 4s have to shift at once
+    #     elif new_i < i:
+    #         # ..., f[new_i], f[new_i + 1], ..., f[i - 1], f[i], f[i + 1], ...
+    #         del f[i]
+    #         # print('ibt', f)
+    #         # ..., f[new_i], f[new_i + 1], ..., f[i - 1], f[i + 1], ...
+    #         if new_i == 0:
+    #             # print('fuckleton wuckleton')
+    #             new_i = len(f)
+    #         f.insert(new_i + (v > 0), v)
+    #         # ..., f[i], f[new_i], f[new_i + 1], ..., f[i - 1], f[i + 1], ...
+
+    #         # ..., f[new_i], f[new_i + 1], ..., f[i - 1], f[i],     ...
+    #         # ..., f[i],     f[new_i],     ..., f[i - 2], f[i - 1], ...
+    #         # f[new_i], f[new_i + 1:i], f[i] = v, f[new_i:i - 1], f[i - 1]
 
         yield f.copy()
 
@@ -169,7 +203,7 @@ def grove_coords(f: list[int]) -> list[int]:
     i = f.index(0)
 
     for k in (1000, 2000, 3000):
-        yield f[i + k]
+        yield f[(i + k) % len(f)]
 
 def grove_coords_csv(ip: str) -> str:
     return ','.join(map(str, grove_coords(mix(parse(ip)))))
