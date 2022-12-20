@@ -145,7 +145,6 @@ class AOC:
                     "name" text,
                     "index" integer not null,
                     primary key ("year", "day", "name"),
-                    unique ("year", "day", "index"),
                     foreign key ("year", "day") references "input" ("year", "day")                    
                 ) without rowid;
 
@@ -413,6 +412,7 @@ class AOC:
         with self.db:
             self.db.execute('delete from "test_answer" where "year" = ? and "day" = ?', (year, day))
             self.db.execute('delete from "test_facet" where "year" = ? and "day" = ?', (year, day))
+            self.db.execute('delete from "test_input" where "year" = ? and "day" = ?', (year, day))
 
             for i, (name, input_, facets) in enumerate(test_defs):
                 self.db.execute('''
