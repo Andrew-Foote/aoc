@@ -7,9 +7,6 @@ import re
 from typing import Self, Type
 from solutions.python.lib import graph
 
-# with blueprint 1, there is no point building more than 4 ore robots,
-# because the most anything costs is 4 ore, so just doing that allows you to get 4 ore per turn
-
 test_inputs = [('example', '''\
 Blueprint 1:
   Each ore robot costs 4 ore.

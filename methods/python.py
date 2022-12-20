@@ -5,7 +5,8 @@ from typing import Any
 
 @ft.cache
 def _module(year, day):
-    return importlib.import_module(f'solutions.python.y{year}.d{day}')
+    alt = '_alt' if year == 2022 and day == 19 else ''
+    return importlib.import_module(f'solutions.python.y{year}.d{day}{alt}')
 
 def has_facet(year: int, day: int, facet: str):
     return hasattr(_module(year, day), facet)
