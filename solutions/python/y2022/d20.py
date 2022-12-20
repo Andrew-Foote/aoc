@@ -1,0 +1,17 @@
+import functools as ft
+import itertools as it
+from typing import Iterator
+from solutions.python.lib import graph
+
+test_inputs = [('example', '''\
+\
+''', [
+    ('p1', 0),
+    ('p2', 0)
+])]
+
+def p1(ip: str) -> int:
+    return 0
+
+def p2(ip: str) -> int:
+    return 0
