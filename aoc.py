@@ -261,6 +261,7 @@ class AOC:
             self.db.execute('''
                 insert into "answer" ("year", "day", "part", "content")
                 values (?, ?, ?, ?)
+                on conflict do nothing
             ''', (year, day, part, answer))
 
     def submit_answer(self, year: int, day: int, part: int, answer: str) -> str:
@@ -346,9 +347,6 @@ class AOC:
             )
 
             print(content)
-
-        for i, answer in enumerate(answers[:2]):
-            self.register_answer(year, day, i + 1, answer)
         
         return {i + 1: answer for i, answer in enumerate(answers)}
 
@@ -361,6 +359,8 @@ class AOC:
             print(f'Could not find the previously-submitted answer for part {part}.')
             success = False
         else:
+            self.register_answer(year, day, part, submitted_answer)
+
             success = submitted_answer == answer
             like_or_unlike = 'like' if success else 'unlike'
 

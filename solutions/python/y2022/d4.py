@@ -10,7 +10,7 @@ test_inputs = [('example', '''\
 6-6,4-6
 2-6,4-8\
 ''', [
-	('full_contain_pairs_csv', '3,4'),
+	('full_include_pairs_csv', '3,4'),
 	('p1', '2'),
 	('range_intersections_csv', ';;7;3,4,5,6,7;6;4,5,6'),
 	('p2', '4')
@@ -41,7 +41,7 @@ def range_intersections(ip: str) -> Iterator[range]:
 		yield range_intersection(r1, r2)
 
 def range_intersections_csv(ip: str) -> str:
-	return ';'.join(','.join(map(str, range_intersections(ip))))
+	return ';'.join(','.join(map(str, r)) for r in range_intersections(ip))
 
 def p2(ip: str) -> int:
 	return sum(map(bool, range_intersections(ip)))
