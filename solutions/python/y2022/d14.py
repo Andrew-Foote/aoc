@@ -2,6 +2,7 @@ from collections import defaultdict
 from enum import Enum
 import itertools as it
 from typing import Callable, Iterator
+from solutions.python.lib.gint import gint
 from solutions.python.lib.grid import DefaultGrid, Grid, Path, Rect
 from solutions.python.lib.digits import digits
 
@@ -35,11 +36,11 @@ def parse_paths(ip: str) -> Iterator[Path]:
 
 		for point_desc in point_descs:
 			x, y = map(float, point_desc.split(','))
-			points.append(complex(x, y))
+			points.append(gint(x, y))
 
 		yield Path(points)
 
-SAND_SOURCE_POS = 500 + 0j
+SAND_SOURCE_POS = gint(500, 0)
 
 class Tile(Enum):
 	AIR = '.'
@@ -48,7 +49,7 @@ class Tile(Enum):
 	FALLING_SAND = '~'
 	RESTING_SAND = 'o'
 
-def grid_pic(rect: Rect, grid: Callable[[complex], Tile]) -> str:	
+def grid_pic(rect: Rect, grid: Callable[[gint], Tile]) -> str:	
 	lines = []
 
 	for place in range(len(digits(rect.right)) - 1, -1, -1):
@@ -66,7 +67,7 @@ def grid_pic(rect: Rect, grid: Callable[[complex], Tile]) -> str:
 		chars = []
 
 		for x in range(rect.left, rect.right + 1):
-			chars.append(grid(complex(x, y)).value)
+			chars.append(grid(gint(x, y)).value)
 
 		prefix = str(y) + ' ' * (len(digits(rect.bottom)) - len(str(y)) + 1)
 		lines.append(prefix + ''.join(chars))
@@ -78,11 +79,15 @@ def grid_pic(rect: Rect, grid: Callable[[complex], Tile]) -> str:
 
 def parse_grid(ip: str) -> Grid[Tile]:
 	paths = list(parse_paths(ip))
+
+	print(paths)
 	
 	rect = Rect.bounding(it.chain(
 		[SAND_SOURCE_POS],
 		it.chain.from_iterable(path.points for path in paths)
 	))
+
+	print(rect)
 
 	full_paths = [list(path) for path in paths]
 	rock_locs = set(it.chain.from_iterable(full_paths))
@@ -101,7 +106,7 @@ def pic(ip: str) -> str:
 	grid = parse_grid(ip)
 	return grid_pic(grid.rect(), lambda z: grid[z])
 
-SAND_FALL_DIRS = (1j, -1 + 1j, 1 + 1j)
+SAND_FALL_DIRS = (gint(0, 1), gint(-1, 1), gint(1, 1))
 
 def p1(ip: str) -> int:
 	grid = parse_grid(ip)
@@ -145,7 +150,7 @@ def p2_parse_grid(ip: str) -> DefaultGrid[Tile]:
 	rocks = set(it.chain.from_iterable(paths))
 	floor = Rect.bounding((SAND_SOURCE_POS, *rocks)).bottom + 2
 
-	def base_grid(z: complex) -> Tile:
+	def base_grid(z: gint) -> Tile:
 		if z.imag == floor:
 			return Tile.ROCK
 		else:
@@ -253,7 +258,7 @@ if __name__ == '__main__':
 	def grid_as_array():
 		return np.block([
 			[
-				np.full((5, 5), TILE_COLOR[grid[complex(x, y)]], dtype='uint32')
+				np.full((5, 5), TILE_COLOR[grid[gint(x, y)]], dtype='uint32')
 				for y in range(rect.top, rect.bottom + 1)
 			]
 			for x in range(rect.left, rect.right + 1)

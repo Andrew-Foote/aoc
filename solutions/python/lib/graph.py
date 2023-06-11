@@ -45,7 +45,7 @@ def bfs(root: _T, children: ChildGenerator[_T]) -> Iterator[_T]:
             del queue[-1]
         else:
             yield node
-            queue.append(iter(children(node)))
+            queue.appendleft(iter(children(node)))
 
 class gdfs(Generic[_T]):
     """An iterator which visits each node in a graph exactly once, in depth-first order.

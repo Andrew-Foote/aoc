@@ -1,9 +1,19 @@
 from dataclasses import dataclass, field
+import itertools as it
 from typing import Any, Callable, Generic, Iterable, Iterator, Optional, Self, Type, TypeVar
 from solutions.python.lib.gint import gint, gint_rect
 
 # north-east-south-west (up-right-down-left) direction vectors
 NESW: tuple[gint, gint, gint, gint] = (gint(0, -1), gint(1, 0), gint(0, 1), gint(-1, 0))
+
+# ne-se-sw-nw
+NE_SE_SW_NW: tuple[gint, gint, gint, gint] = (gint(1, -1), gint(1, 1), gint(-1, 1), gint(-1, -1))
+
+# n-ne-e-se-s-sw-w-nw
+COMPASS: tuple[gint, ...] = tuple(it.chain.from_iterable(
+    (od, dd)
+    for od, dd in zip(NESW, NE_SE_SW_NW)
+))
 
 @dataclass
 class Line:
@@ -168,7 +178,7 @@ class Line:
         dy = y1 - y0
         return cls(-dy, dx, x0 * dy - y0 * dx)
 
-@dataclass
+@dataclass(frozen=True)
 class Rect:
     """A rectangular region in a grid.
 
@@ -262,6 +272,10 @@ class Rect:
             lines.append(''.join(line))
 
         return '\n'.join(lines)
+
+    def __add__(self: Self, other: gint) -> Self:
+        return self.__class__(self.top + other.imag, self.right + other.real, self.bottom + other.imag, self.left + other.real)
+        #return self.__class__.bounding((self.top_left + other, self.bottom_right + other))
 
 @dataclass
 class Path:
