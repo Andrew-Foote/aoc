@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 import re
 from utils import joinlines
+from solutions.python.lib.utils import prod
 import typing
 
 test_inputs = [('example', '''\
@@ -41,6 +42,14 @@ class Game:
 			reveal[color] <= start[color]
 			for reveal in self.reveals for color in Color
 		)
+
+	def requirements(self) -> dict[Color, int]:
+		result = {}
+
+		for color in Color:
+			result[color] = max(reveal[color] for reveal in self.reveals)
+
+		return result
 
 def parse_game(line: str) -> Game:
 	m = re.match(r'Game (\d+): (.*)', line)
@@ -97,4 +106,16 @@ def p1(ip: str) -> int:
 	return sum(
 		game.id_ for game in parse_games(ip)
 		if game.is_possible({Color.RED: 12, Color.GREEN: 13, Color.BLUE: 14})
+	)
+
+def requirements_csv(ip: str) -> str:
+	return ';'.join(
+		','.join(str(amount) for color, amount in game.requirements().items())
+		for game in parse_games(ip)
+	)
+
+def p2(ip: str) -> int:
+	return sum(
+		prod(amount for color, amount in game.requirements().items())
+		for game in parse_games(ip)
 	)
