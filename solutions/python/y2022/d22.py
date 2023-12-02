@@ -128,143 +128,115 @@ CUBE2CUBE = {
 
 # one side would be (x, y, )
 
+def get_face_number_for_coords(coords: gint) -> int:
+    if 50 <= coords.real < 100 and 0 <= coords.imag < 50:
+        return 1
+    elif 100 <= coords.real < 150 and 0 <= coords.image < 50:
+        return 2
+    elif 50 <= coords.real < 100 and 50 <= coords.imag < 100:
+        return 3
+    elif 0 <= coords.real < 50 and 100 <= coords.imag < 150:
+        return 4
+    elif 50 <= coords.real < 100 and 100 <= coords.imag < 150:
+        return 5
+    elif 0 <= coords.real < 50 and 150 <= coords.imag < 200:
+        return 6
+
+
 def p2(ip: str) -> int:
     board, path = parse(ip)
     rect = board.rect()
 
+    # can't figure out how to fold an arbitrary net, so I'll just do the folding for my
+    # specific input manually
+
+    # Net looks like this:
+    # 
+    #   1122 
+    #   33  
+    # 4455 
+    # 66   
+
+    # i guess what we really need to know is the *edge* connections
+    # and also the orientation of the edge connection
+    # so like, the left edge of the 11 face connects to the top edge of the 44 facd
+    # specifically, the bottom of the left edge of the 11 face connects to the right of the top edge of the 44 face
+    # and the top of the left edge of the 11 face connects to the left of the top edge of the 44 face
+    # if we were 3 away from the bottom of the left edge of the 11 face, and we want left
+    # we would end up being 3 away from the right of the top edge of the 44 face
+    # so i guess these connections are derivable from the corner connections
+    # a corner connection says: this corner of this face connects to this corner of this other face
+    # how do we identify corners? by face + ne/sw/nw/se
+
+    empty = nw
+    shaded = ne
+    crown = sw
+    circles = se
+
+    CORNERS = [
+        { (1, DIR_NW), (4, DIR_NE), (6, DIR_NW) },
+        { (1, DIR_NE), (2, DIR_NW), (6, DIR_SW) },
+        { (1, DIR_SW), (4, DIR_NW), (3, DIR_NW) },
+        { (1, DIR_SE), (2, DIR_SW), (3, DIR_NE) },
+        { (5, DIR_NW), (4, DIR_NE), (3, DIR_SW) },
+        { (5, DIR_NE), (3, DIR_SE), (2, DIR_SE) },
+        { (5, DIR_SW), (4, DIR_SE), (6, DIR_NE) },
+        { (5, DIR_SE), (6, DIR_SE), (2, DIR_NE) }
+    ]
+
+    # when we leave the net on one side we need to know
+    # (a) which face we are going to
+    # (b) where we will be on this face
+    #     we know we'll be on an edge
+    #     and we'll be offset from a certain corner by an amount which
+    #     is the same as the offset from one of the corners of the original
+    #     edge
+    #     
+    # which folds to this...
+    #     
+    # nb: we need to know not only which face is which, but also which direction it is
+    # facing, relative to the original direction in the net... imagine there's an arrow
+    # pointing up on each face on the net, the directions below indicate which direction
+    # that arrow is going after the folding   
+    #   _______
+    #  |\      |\      dotted side = front = 1, up
+    #  | \     | \     right side = 2, up
+    #  |  \    |  \    bottom side = 3, forward
+    #  |   \___|___\   back side = 5, down
+    #  |___|_._|....|  left side = 4, down
+    #  \   |...\....|  top side = 6, left
+    #   \  |....\...|   i think...
+    #    \ |.....\..|
+    #     \|......\.|
+    #      \_______\|  
+
+    NN, EE, SS, WW = NESW
+
+    # this is what's given directly by the net. directions are relative to net orientation.
+    # 
+    # NEIGHBOURS = {
+    #     1: {EE: 2, SS: 3},
+    #     2: {WW: 1},
+    #     3: {NN: 1, SS: 5},
+    #     4: {EE: 5, SS: 6},
+    #     5: {LL: 4, NN: 3},
+    #     6: {NN: 4}
+    # }
+
+    # and here's what it expands to...
+    NEIGHBOURS = {
+        1: {EE: 2, SS: 3, NN: 6, WW: 4},
+        2: {WW: 1, NN: 6, EE: 5, SS: 3},
+        3: {NN: 1, SS: 5, WW: 4, EE: 2},
+        4: {EE: 5, SS: 6, NN: 3, WW: 1},
+        5: {WW: 4, NN: 3, EE: 2, SS: 6},
+        6: {NN: 4, EE: 5, WW: 1, SS: 2}
+    }
 
     x0 = min(x for x in range(rect.width) if board[gint(x, 0)] == '.')
     pos = gint(x0, 0)
     diri = 1 # NESW index
              # 3012
-
-    # construct the 3d board, as a set of 3d points
-    # identify the six faces as rects, and their adjacencies in the net
-    # then go through each one and project the points onto 3d
-    board3d = {}
-
-    # we know our start position is on the top left edge of one of the faces.
-    # we can then just measure the side length going right
-    side_length = 0
-    while pos + side_length in rect and board[pos + side_length] != ' ':
-        side_length += 1
-
-    root_face = Rect(0, x0 + side_length - 1, side_length - 1, x0)
-
-    face_children = lambda face: tuple(
-        (di, face + side_length * d) for di, d in enumerate(NESW)
-        if face.top_left + side_length * d in rect and board[face.top_left + side_length * d] != ' '
-    )
-
-
-
-    # Projection of our 2D position into 3D space.
-    # Initially (x, y) -> (x, y, 0)
-    # We "turn" this when we transition between faces. There
-    # are four types of turns:
-    # Up: e.g. [(x, y) -> (x, y, 0)] => [(x, y) -> (x, 0, -y)]
-    #  (1 0)    (1 0 )     (1 0  0)
-    #  (0 1) -> (0 0 )     (0 0  1)  hmm not sure about ths row
-    #  (0 0)    (0 -1)     (0 -1 0)
-    # Right: e.g. [(x, y) -> (x, y, 0)] => [(x, y) -> (0, y, x)],
-    #     (0 0 1)
-    #     (0 1 0)
-    #     (1 0 0)
-    # Down: e.g. [(x, y) -> (x, y, 0)] => [(x, y) -> (x, 0, y)],
-    #     (1 0 0)
-    #     (0 0 1)
-    #     (0 1 0)
-    # Left: e.g. [(x, y) -> (x, y, 0)] => [(x, y) -> (0, y, -x)]
-    #     (0  0 1)
-    #     (0  1 0)
-    #     (-1 0 0)
-    # Each entry in the matrix will always be either 0, 1 or -1
-    # 
-
-
-    # up: (x, y, 0) -> (x, 0, y)
-    # right: (x, y, 0) -> (side_length, y, x)
-    # down: (x, y, 0) -> (x, side_length, y)
-    # left: (x, y, 0) -> (0, y, x)
-
-    proj = np.array([
-        [1, 0],
-        [0, 1],
-        [0, 0]
-    ])
-
-    URDL = [
-        np.array([
-            [1, 0, 0],
-            [0, 0, 1],
-            [0, -1, 0]
-        ]),
-        np.array([
-            [0, 0, 1],
-            [0, 1, 0],
-            [1, 0, 0]
-        ]),
-        np.array([
-            [1, 0, 0],
-            [0, 0, 1],
-            [0, 1, 0],
-        ]),
-        np.array([
-            [0, 0, 1],
-            [0, 1, 0],
-            [-1, 0, 0]
-        ])
-    ]
-
-    stack = [(proj, root_face)]
-    visited = set()
-
-    while stack:
-        proj, face = stack.pop()
-
-        if face not in visited:
-            print(face.top_left, face.bottom_right)
-            print(face.picture(lambda z: '~' if board[z] == ' ' else board[z]))
-            print()
-            visited.add(face)
-
-            for z in face:
-                assert z in rect, (z, rect)
-                z0 = z - face.top_left
-                z3d = tuple(proj @ np.array([z0.real, z0.imag]))
-                z3d = (
-                    z3d[0] if z3d[0] >= 0 else side_length - z3d[0] - 1, 
-                    z3d[1] if z3d[1] >= 0 else side_length - z3d[1] - 1, 
-                    z3d[2] if z3d[2] >= 0 else side_length - z3d[2] - 1, 
-                )
-                print(z, z0, z3d, board[z])
-                #assert z3d not in board3d, (z, z0, z3d)
-                board3d[z3d] = board[z]
-
-            children = face_children(face)
-
-            for di, child in children:
-                stack.append((URDL[di] @ proj, child))
-
-    print(board3d)
-
-    # assert len(board3d) == 6 * side_length ** 2 - 8 * side_length, (len(board3d), side_length)
-
-    # # ok, now we should have the 3d board. let's do some asserts to make sure it was built correctly
-    # for x, y, z in it.product(range(side_length), repeat=3):
-    #     if x == 0 or x == side_length - 1 or y == 0 or y == side_length - 1 or z == 0 or z == side_length - 1:
-    #         assert (x, y, z) in board3d, (x, y, z)
-    #         assert board3d[x, y, z] in ('.', '#'), board3d[x, y, z]
-
-    for x, y, z in board3d.keys():
-        assert 0 <= x < side_length and 0 <= y < side_length and 0 <= z < side_length, (x, y, z)
-
-    proj = np.array([
-        [1, 0],
-        [0, 1],
-        [0, 0]
-    ])
-
     for instr in path:
         # print(f'{instr=}, {diri=}')
         # print(board.rect().picture(lambda z: 'P' if z == pos else '~' if board[z] == ' ' else board[z]))
@@ -282,30 +254,13 @@ def p2(ip: str) -> int:
         else:
             for _ in range(n):
                 new_pos = pos + NESW[diri]
-
-                if new_pos not in board.rect() or board[new_pos] == ' ':
-                    pos3d = proj @ np.array((pos.real, pos.imag))
-
-
-                    # find the next part of the cube to go to...
-                    for cubename, cube in CUBES.items():
-                        if pos in cube:
-                            nextcube = CUBES[CUBE2CUBE[cubename][diri]]
-                            new_pos = new_pos - cube.top_left + nextcube.top_left
-                            print(new_pos)
-                            break
-
-
-                # new_pos = gint(new_pos.real % rect.width, new_pos.imag % rect.height)
+                new_pos = gint(new_pos.real % rect.width, new_pos.imag % rect.height)
                 # print(f'from {pos} to {new_pos}')
 
-                # if board[new_pos] == ' ':
-
-
-                # while board[new_pos] == ' ':
-                #     # print(f'advancing new_pos from {new_pos} cuz blank')
-                #     new_pos = new_pos + NESW[diri]
-                #     new_pos = gint(new_pos.real % rect.width, new_pos.imag % rect.height)
+                while board[new_pos] == ' ':
+                    # print(f'advancing new_pos from {new_pos} cuz blank')
+                    new_pos = new_pos + NESW[diri]
+                    new_pos = gint(new_pos.real % rect.width, new_pos.imag % rect.height)
 
                 if board[new_pos] == '#':
                     break
@@ -316,4 +271,4 @@ def p2(ip: str) -> int:
     colnum = pos.real + 1
     facing = (diri - 1) % 4
     # print(rownum, colnum, facing)
-    return 1000 * rownum + 4 * colnum + facing
+    return 1000 * rownum + 4 * colnum + facing    
