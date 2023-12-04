@@ -1,4 +1,6 @@
+from dataclasses import dataclass
 import re
+import typing as t
 
 test_inputs = [('example', '''\
 Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53
@@ -10,40 +12,58 @@ Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11
 ''', [
 	('points_csv','8,2,2,1,0,0'),
 	('p1','13'),
+	('instances_csv','1,2,4,8,14,1'),
+	('p2','30')
 ])]
 
-# winning on left
-# have on right
-# 2**(number of winning numbers you have) = points
-# this is for each card
-# we want the total points from each card
+@dataclass
+class Card:
+	id_: int
+	winning: set[int]
+	have: set[int]
 
-def parse_cards(ip: str) -> list[tuple[set[int], set[int]]]:
-	cards = []
+	@property
+	def score(self) -> int:
+		return int(2 ** (len(self.winning & self.have) - 1))
 
+def parse_cards(ip: str) -> t.Iterator[Card]:
 	for card in ip.splitlines():
-		m = re.match(r'Card\s+\d+:(.*)', card)
+		m = re.match(r'Card\s+(\d+):(.*)', card)
 		if m is None: breakpoint()
-		rest, = m.groups()
+		card_id, rest = m.groups()
+		card_id = int(card_id)
 		winning, have = [bit.strip() for bit in rest.split('|')]
 		winning = { int(bit.strip()) for bit in winning.split() }
 		have = { int(bit.strip()) for bit in have.split() }
-		cards.append((winning, have))
-
-	return cards
-
-def points(winning: set[int], have: set[int]):
-	count = len(winning & have)
-	print(winning, have, winning & have)
-	return int(2 ** (count - 1))
+		yield Card(card_id, winning, have)
 
 def points_csv(ip: str) -> str:
-	return ','.join(str(points(winning, have)) for winning, have in parse_cards(ip))
+	return ','.join(str(card.score) for card in parse_cards(ip))
 
 def p1(ip: str) -> int:
-	tot = 0
+	return sum(card.score for card in parse_cards(ip))
 
-	for winning, have in parse_cards(ip):
-		tot += points(winning, have)
+def parse_instances(ip: str) -> dict[int, int]:
+	cards = list(parse_cards(ip))
+	instances = {card.id_: 1 for card in cards}
 
-	return tot
+	for i, card in enumerate(cards):
+		mult = instances[card.id_]
+		dist = len(card.winning & card.have)
+		j = i + 1
+
+		while j < len(cards) and j < i + 1 + dist:
+			print('copying next', dist, 'cards: ', range(i + 1, i + 1 + dist))
+			instances[cards[j].id_] += mult
+			j += 1
+
+	return instances
+
+def instances_csv(ip: str) -> str:
+	return ','.join(str(v) for _, v in sorted(parse_instances(ip).items(), key=lambda p: p[0]))
+
+def p2(ip: str) -> int:
+	instances = parse_instances(ip)
+	return sum(instances.values())
+
+
