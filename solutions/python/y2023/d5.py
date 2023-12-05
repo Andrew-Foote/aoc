@@ -37,7 +37,7 @@ humidity-to-location map:
 60 56 37
 56 93 4
 ''', [
-	('locations_csv', '82,43,86,35')
+	('locations_csv', '82,43,86,35'),
 	('p1','35'),
 ])]
 
@@ -62,11 +62,14 @@ class AlmanacMap:
 
 	def apply(self, val: int) -> int:
 		for line in self.lines:
+			print('APPLYING', line, 'TO', val)
 			new = line.apply(val)
 
 			if new is not None:
+				print('LINE WAS APPLIED')
 				return new
 
+		print('NO LINE APPLIED, RETURNING UNCHANGED')
 		return val
 
 def parse(ip: str) -> tuple[list[int], list[AlmanacMap]]:
@@ -87,8 +90,8 @@ def parse(ip: str) -> tuple[list[int], list[AlmanacMap]]:
 		rest = rest.splitlines()
 		lines = []
 
-		for linestr in lines:
-			linestr = linestr.split()
+		for linestr in rest:
+			linestr = linestr.strip()
 			drs, srs, rl = map(int, linestr.split())
 			lines.append(MapLine(drs, srs, rl))
 
@@ -97,12 +100,14 @@ def parse(ip: str) -> tuple[list[int], list[AlmanacMap]]:
 	return seeds, maps
 
 def location_for_seed(maps: list[AlmanacMap], seed: int) -> int:
+	print('LOCATION FOR SEED', seed)
 	cur = 'seed'
 	val = seed
 	maps_by_src = {mapp.src: mapp for mapp in maps}
 
 	while cur in maps_by_src:
 		mapp = maps_by_src[cur]
+		print('CUR=', cur, 'VAL=', val, 'NXT=', mapp.dst)
 		val = mapp.apply(val)
 		cur = mapp.dst
 
