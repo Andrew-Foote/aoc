@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import itertools as it
 import re
 from typing import Iterator, Optional
 
@@ -39,6 +40,7 @@ humidity-to-location map:
 ''', [
 	('locations_csv', '82,43,86,35'),
 	('p1','35'),
+	('p2','46')
 ])]
 
 @dataclass
@@ -62,21 +64,32 @@ class AlmanacMap:
 
 	def apply(self, val: int) -> int:
 		for line in self.lines:
-			print('APPLYING', line, 'TO', val)
+			#print('APPLYING', line, 'TO', val)
 			new = line.apply(val)
 
 			if new is not None:
-				print('LINE WAS APPLIED')
 				return new
 
-		print('NO LINE APPLIED, RETURNING UNCHANGED')
 		return val
+
+	def preimage(self, val: int) -> Iterator[int]:
+		# which values produce val when the map is applied to them?
+		fixed = True
+
+		for line in self.lines:
+			if line.drs <= val < line.drs + line.rl:
+				diff = val - line.drs
+				yield line.srs + diff
+				fixed = False
+
+		if fixed:
+			yield val
 
 def parse(ip: str) -> tuple[list[int], list[AlmanacMap]]:
 	m = re.match(r'^seeds:(.*)', ip)
 	if m is None: breakpoint()
 	seeds, = m.groups()
-	seeds = map(int, seeds.split())
+	seeds = list(map(int, seeds.split()))
 	rest = ip[m.end():].strip()
 	rest = rest.split('\n\n')
 	maps = []
@@ -100,19 +113,31 @@ def parse(ip: str) -> tuple[list[int], list[AlmanacMap]]:
 	return seeds, maps
 
 def location_for_seed(maps: list[AlmanacMap], seed: int) -> int:
-	print('LOCATION FOR SEED', seed)
+	#print('LOCATION FOR SEED', seed)
 	cur = 'seed'
 	val = seed
 	maps_by_src = {mapp.src: mapp for mapp in maps}
 
 	while cur in maps_by_src:
 		mapp = maps_by_src[cur]
-		print('CUR=', cur, 'VAL=', val, 'NXT=', mapp.dst)
 		val = mapp.apply(val)
 		cur = mapp.dst
 
 	assert cur == 'location'
 	return val
+
+def seeds_for_location(maps: list[AlmanacMap], location: int) -> set[int]:
+	cur = 'location'
+	vals = {location}
+	maps_by_dst = {mapp.dst: mapp for mapp in maps}
+
+	while cur in maps_by_dst:
+		mapp = maps_by_dst[cur]
+		vals = set().union(*(mapp.preimage(val) for val in vals))
+		cur = mapp.src
+
+	assert cur == 'seed'
+	return vals
 
 def locations(ip: str) -> Iterator[int]:
 	seeds, maps = parse(ip)
@@ -125,3 +150,19 @@ def locations_csv(ip: str) -> str:
 
 def p1(ip: str) -> int:
 	return min(locations(ip))
+
+def reinterpret_for_p2(seeds: list[int]) -> list[range]:
+	for start, length in zip(seeds[::2], seeds[1::2]):
+		yield range(start, start + length)
+
+def p2(ip: str) -> int:
+	seeds, maps = parse(ip)
+	seeds = list(reinterpret_for_p2(seeds))
+
+	for i in it.count():
+		print(i)
+
+		for seed in seeds_for_location(maps, i):
+			for seed_range in seeds:
+				if seed_range.start <= seed < seed_range.stop:
+					return i

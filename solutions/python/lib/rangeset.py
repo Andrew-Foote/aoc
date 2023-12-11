@@ -1,6 +1,7 @@
 from bisect import bisect_right
 from dataclasses import dataclass
-from typing import Iterator
+from typing import Iterable, Iterator, Self
+from solutions.python.lib.utils import range_intersection
 
 class RangeSet:
 	"""A disjoint union of contiguous ranges.
@@ -20,6 +21,36 @@ class RangeSet:
 
 		if len(set(self.points)) != len(self.points):
 			raise ValueError('duplicate points in range set')
+
+	def __repr__(self: Self) -> str:
+		return f'{self.__class__.__name__}({repr(self.points)})'
+
+	@classmethod
+	def from_ranges(cls: type[Self], ranges: Iterable[range]) -> Self:
+		"""
+		>>> RangeSet.from_ranges([range(1, 4), range(9, 16), range(3, 5)])
+		RangeSet([1, 5, 9, 16])
+		"""
+		ranges = sorted(ranges, key=lambda r: (r.start, r.stop))
+		points = []
+		cur = None
+		start = None
+		stop = None
+
+		for r in ranges:
+			if cur is None:
+				cur = r
+			else:
+				if r.start <= cur.stop:
+					cur = range(cur.start, r.stop)
+				else:
+					points.extend([cur.start, cur.stop])
+					cur = r
+
+		if cur is not None:
+			points.extend([cur.start, cur.stop])
+
+		return cls(points)
 
 	def __contains__(self: Self, x: int) -> bool:
 		# Why does this work? bisect_right(self.points, x) returns i + 1, where i is the greatest
@@ -41,27 +72,36 @@ class RangeSet:
 
 		return bisect_right(self.points, x) % 2 == 1
 
+	def ranges(self: Self) -> Iterator[range]:
+		"""
+		>>> list(RangeSet([1, 4, 9, 16, 25, 36]).ranges())
+		[range(1, 4), range(9, 16), range(25, 36)]
+		"""
+		for start, end in zip(self.points[::2], self.points[1::2]):
+			yield range(start, end)
+
 	def __iter__(self: Self) -> Iterator[int]:
-		for start, end in zip(self.points, self.points[1:]):
-			yield from range(start, end)
+		for r in self.ranges():
+			yield from r
 
-	# def add(self, r: range) -> None:
-	# 	if r.step != 1:
-	# 		raise ValueError('ranges in rangeset must be contiguous')
+	def __and__(self: Self, other: Self) -> Self:
+		"""
+		>>> r1 = RangeSet([1, 4, 9, 16, 25, 36])
+		>>> r2 = RangeSet([0, 2, 3, 18])
+		>>> r1 & r2
+		RangeSet([1, 2, 3, 4, 9, 16])
+		"""
+		ranges = []
 
-	# 	# Find the greatest index i such that self.points[i] <= r.start.
+		for self_range in self.ranges():
+			for other_range in other.ranges():
+				intersection = range_intersection(self_range, other_range)
 
-	# 	# p[i] <= r.start < p[i + 1]
-	# 	i = bisect_right(self.points, r.start) - 1
+				if intersection:
+					ranges.append(intersection)
 
-	# 	# If i == -1, then the start point of the range set is greater than r.start.
-	# 	# So we will be lowering the start point. But will we be adding a new range in front
-	# 	# or just extending the first range? We need to check whether r.end is strictly less
-	# 	# than the first point. If it's strictly less there's a gap of at least 1, otherwise
-	# 	# we can merge.
+		return self.__class__.from_ranges(ranges)
 
-	# 	# Find the smallest index i such that r.end < self.points[i].
-	# 	# p[j - 1] <= r.end < p[j]
-	# 	j = bisect_right(self.points, r.end)
-
-	# 	# Find the smallest index i such that self.points[i] > 
+if __name__ == '__main__':
+	import doctest
+	doctest.testmod()
