@@ -9,7 +9,9 @@ Distance:  9  40  200
 ''', [
 	('races_csv', '7,9;15,40;30,200'),
 	('ways_to_beat_csv','2,5;4,11;11,19'),
-	('ways_to_beat_count_csv','4,8,9')
+	('ways_to_beat_count_csv','4,8,9'),
+	('p1','288'),
+	('p2','71503')
 ])]
 
 @dataclass
@@ -71,4 +73,11 @@ def ways_to_beat_count_csv(ip: str) -> str:
 def p1(ip: str) -> int:
 	return prod(ways_to_beat_count(race) for race in parse(ip))
 
+def parse_p2(ip: str) -> Race:
+	times_line, distances_line = ip.splitlines()
+	time = int(''.join(times_line.split()[1:]))
+	distance = int(''.join(distances_line.split()[1:]))
+	return Race(time, distance)
 
+def p2(ip: str) -> int:
+	return ways_to_beat_count(parse_p2(ip))
