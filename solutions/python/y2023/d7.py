@@ -11,7 +11,9 @@ KTJJT 220
 QQQJA 483
 ''', [
 	('ranks_csv','1,4,3,2,5'),
-	('p1','6440')
+	('p1','6440'),
+	('p2_ranks_csv', '1,3,2,5,4'),
+	('p2','5905')
 ])]
 
 CARDS = '23456789TJQKA'
@@ -93,3 +95,36 @@ def p1(ip: str) -> int:
 	hands, bid_map, rank_map = parse_ranks(ip)
 	return sum(bid_map[hand] * rank_map[hand] for hand in hands)
 
+P2_CARD_TO_STRENGTH_MAP = CARD_TO_STRENGTH_MAP | {'J' : -1}
+
+def effective_hand(hand: Hand) -> Hand:
+	j_count = 0
+	hand_minus_js = []
+
+	for card in hand:
+		if card.label == 'J':
+			j_count += 1
+		else:
+			hand_minus_js.append(card)
+
+	if not hand_minus_js:
+		return hand_from_str('AAAAA')
+
+	most_numerous_card = Counter(hand).most_common()[0][0]
+	return tuple(hand_minus_js + [most_numerous_card] * j_count)
+
+def p2_parse_ranks(ip: str) -> str:	
+	hands_with_bids = [(effective_hand(hand), bid) for hand, bid in parse(ip)]
+	hands, _ = zip(*hands_with_bids)
+	bid_map = dict(hands_with_bids)
+	hands_sorted = sorted(hands, key=ft.cmp_to_key(hand_cmp))
+	rank_map = {hand: i + 1 for i, hand in enumerate(hands_sorted)}
+	return hands, bid_map, rank_map
+
+def p2_ranks_csv(ip: str) -> str:
+	hands, bid_map, rank_map = p2_parse_ranks(ip)
+	return ','.join(str(rank_map[hand]) for hand in hands)
+
+def p2(ip: str) -> int:
+	hands, bid_map, rank_map = p2_parse_ranks(ip)
+	return sum(bid_map[hand] * rank_map[hand] for hand in hands)
