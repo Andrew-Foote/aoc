@@ -97,27 +97,64 @@ def p1(ip: str) -> int:
 
 P2_CARD_TO_STRENGTH_MAP = CARD_TO_STRENGTH_MAP | {'J' : -1}
 
+def hand_str(hand: Hand) -> str:
+	return ''.join(card.label for card in hand)
+
 def effective_hand(hand: Hand) -> Hand:
-	j_count = 0
+	j_positions = set()
 	hand_minus_js = []
 
-	for card in hand:
+	for i, card in enumerate(hand):
 		if card.label == 'J':
-			j_count += 1
+			j_positions.add(i)
 		else:
 			hand_minus_js.append(card)
 
 	if not hand_minus_js:
 		return hand_from_str('AAAAA')
 
-	most_numerous_card = Counter(hand).most_common()[0][0]
-	return tuple(hand_minus_js + [most_numerous_card] * j_count)
+	#print(hand_str(hand))
+	most_common = Counter(hand_minus_js).most_common()
+	#print([(card.label, count) for hand, count in most_common])
+	most_common_count = most_common[0][1]
+	#print(most_common_count)
+	most_common_cards = tuple(card for card, count in most_common if count == most_common_count)
+	#print([card.label for card in most_common_cards])
+	replacement_for_j = max(most_common_cards)
+	#print(replacement_for_j.label)
+	
+	new_hand = tuple(
+		(replacement_for_j if i in j_positions else card)
+		for i, card in enumerate(hand)
+	)
 
-def p2_parse_ranks(ip: str) -> str:	
-	hands_with_bids = [(effective_hand(hand), bid) for hand, bid in parse(ip)]
+	#print(hand_str(new_hand))
+	#print('---')
+	return new_hand
+
+def p2_hand_cmp(hand1: Hand, hand2: Hand) -> bool:
+	str1, str2 = (hand_strength(effective_hand(h)) for h in (hand1, hand2))
+
+	if str1 < str2:
+		return -1
+
+	if str2 < str1:
+		return 1
+
+	for card1, card2 in zip(hand1, hand2):
+		if card1 < card2:
+			return -1
+
+		if card2 < card1:
+			return 1
+
+	return 0
+
+def p2_parse_ranks(ip: str) -> tuple[list[Hand], dict[Hand, int], dict[Hand, int]]:
+	hands_with_bids = list(parse(ip))
 	hands, _ = zip(*hands_with_bids)
 	bid_map = dict(hands_with_bids)
-	hands_sorted = sorted(hands, key=ft.cmp_to_key(hand_cmp))
+	hands_sorted = sorted(hands, key=ft.cmp_to_key(p2_hand_cmp))
 	rank_map = {hand: i + 1 for i, hand in enumerate(hands_sorted)}
 	return hands, bid_map, rank_map
 
@@ -128,3 +165,6 @@ def p2_ranks_csv(ip: str) -> str:
 def p2(ip: str) -> int:
 	hands, bid_map, rank_map = p2_parse_ranks(ip)
 	return sum(bid_map[hand] * rank_map[hand] for hand in hands)
+	# 250785169 too low (first attempt)
+	# 253283591 too low (second attempt)
+	# 253423744 too high (third attempt)
