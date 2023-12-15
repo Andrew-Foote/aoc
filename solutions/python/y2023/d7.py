@@ -23,12 +23,13 @@ CARD_TO_STRENGTH_MAP = {c: i for i, c in enumerate(CARDS)}
 class Card:
 	label: str
 
+	@property
 	def strength(self: Self) -> int:
 		return CARD_TO_STRENGTH_MAP[self.label]
 
-	@ft.total_ordering
-	def __lt__(self: Self, other: Self) -> bool:
-		return self.strength() < other.strength()
+	@property
+	def p2_strength(self: Self) -> int:
+		return P2_CARD_TO_STRENGTH_MAP[self.label]
 
 Hand = tuple[Card, Card, Card, Card, Card]
 
@@ -66,10 +67,10 @@ def hand_cmp(hand1: Hand, hand2: Hand) -> bool:
 		return 1
 
 	for card1, card2 in zip(hand1, hand2):
-		if card1 < card2:
+		if card1.strength < card2.strength:
 			return -1
 
-		if card2 < card1:
+		if card2.strength < card1.strength:
 			return 1
 
 	return 0
@@ -100,6 +101,7 @@ P2_CARD_TO_STRENGTH_MAP = CARD_TO_STRENGTH_MAP | {'J' : -1}
 def hand_str(hand: Hand) -> str:
 	return ''.join(card.label for card in hand)
 
+@ft.cache
 def effective_hand(hand: Hand) -> Hand:
 	j_positions = set()
 	hand_minus_js = []
@@ -110,17 +112,20 @@ def effective_hand(hand: Hand) -> Hand:
 		else:
 			hand_minus_js.append(card)
 
+	if not j_positions:
+		return hand
+
 	if not hand_minus_js:
 		return hand_from_str('AAAAA')
 
 	#print(hand_str(hand))
 	most_common = Counter(hand_minus_js).most_common()
-	#print([(card.label, count) for hand, count in most_common])
+	#print([(card.label, count) for card, count in most_common])
 	most_common_count = most_common[0][1]
 	#print(most_common_count)
 	most_common_cards = tuple(card for card, count in most_common if count == most_common_count)
 	#print([card.label for card in most_common_cards])
-	replacement_for_j = max(most_common_cards)
+	replacement_for_j = max(most_common_cards, key=lambda card: card.p2_strength)
 	#print(replacement_for_j.label)
 	
 	new_hand = tuple(
@@ -129,7 +134,7 @@ def effective_hand(hand: Hand) -> Hand:
 	)
 
 	#print(hand_str(new_hand))
-	#print('---')
+	#input()
 	return new_hand
 
 def p2_hand_cmp(hand1: Hand, hand2: Hand) -> bool:
@@ -142,10 +147,10 @@ def p2_hand_cmp(hand1: Hand, hand2: Hand) -> bool:
 		return 1
 
 	for card1, card2 in zip(hand1, hand2):
-		if card1 < card2:
+		if card1.p2_strength < card2.p2_strength:
 			return -1
 
-		if card2 < card1:
+		if card2.p2_strength < card1.p2_strength:
 			return 1
 
 	return 0
