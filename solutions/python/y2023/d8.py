@@ -1,9 +1,12 @@
+from collections import Counter
 from enum import Enum
 import functools as ft
+import math
 import heapq
 import itertools as it
 import re
 from typing import Iterator, Self
+from solutions.python.lib.utils import prod
 
 test_inputs = [('example', '''\
 RL
@@ -71,17 +74,18 @@ def parse(ip: str) -> tuple[list[Dir], Graph]:
 
 	return dirs, nodes
 
-def steps(dirs: list[Dir], graph: Graph, start: str=START) -> Iterator[tuple[str, Dir]]:
+def steps(dirs: list[Dir], graph: Graph, start: str=START) -> Iterator[tuple[str, int]]:
 	cur = start
 
-	for direction in it.cycle(dirs):
-		yield cur, direction
-		cur = graph[cur][direction.index]
+	while True:
+		for i, direction in enumerate(dirs):
+			yield cur, i
+			cur = graph[cur][direction.index]
 
 def p1(ip: str) -> int:
 	dirs, nodes = parse(ip)
 
-	for i, (node, direction) in enumerate(steps(dirs, nodes)):
+	for i, (node, dirindex) in enumerate(steps(dirs, nodes)):
 		if node == STOP:
 			return i
 
@@ -93,31 +97,30 @@ def p2_naive(ip: str) -> int:
 
 	for i in it.count():
 		curs = [next(iterator)[0] for iterator in iterators]
-		print(curs)
+		#print(curs)
 
 		if all(cur in stops for cur in curs):
 			return i
 
-def stop_places(dirs: list[Dir], graph: Graph, start: str, stops: set[str]) -> Iterator[int]:
-	print('computing stop_places for start ', start)
+def cycle_info(dirs: list[Dir], graph: Graph, start: str, stops: set[str]) -> tuple[int, int, list[int]]:
+	#print('computing stop_places for start ', start)
 
 	visited = {}
 	initial_stop_places = []
 
-	for i, (node, direction) in enumerate(steps(dirs, graph, start)):
-		print(node, direction, end = ' . ')
+	for i, (node, dirindex) in enumerate(steps(dirs, graph, start)):
+		#print(node, dirindex, end = ' . ')
 
-		if (node, direction) in visited:
-			repeat_start = visited[node, direction]
-			print('revisisted ', node, direction, 'at', i, 'steps, was first visited at', repeat_start)
+		if (node, dirindex) in visited:
+			repeat_start = visited[node, dirindex]
+			#print('revisisted ', node, dirindex, 'at', i, 'steps, was first visited at', repeat_start)
 			repeat_end = i
 			break
 		else:
-			visited[node, direction] = i
+			visited[node, dirindex] = i
 
 			if node in stops:
-				print('node in stops: ', node)
-				yield i
+				print('found stop place: ', i, node, dirindex)
 				initial_stop_places.append(i)
 		
 	for i, p in enumerate(initial_stop_places):
@@ -127,6 +130,13 @@ def stop_places(dirs: list[Dir], graph: Graph, start: str, stops: set[str]) -> I
 	else:
 		stop_places_within_repeat = []
 
+	print('cycle info:', start, repeat_start, repeat_end, stop_places_within_repeat)
+	return repeat_start, repeat_end, initial_stop_places, stop_places_within_repeat
+
+def stop_places(dirs: list[Dir], graph: Graph, start: str, stops: set[str]) -> Iterator[int]:
+	repeat_start, repeat_end, initial_stop_places, stop_places_within_repeat = cycle_info(dirs, graph, start, stops)
+	yield from initial_stop_places
+
 	if not stop_places_within_repeat:
 		return
 
@@ -134,36 +144,49 @@ def stop_places(dirs: list[Dir], graph: Graph, start: str, stops: set[str]) -> I
 		for p in stop_places_within_repeat:
 			yield p + q * (repeat_end - repeat_start)
 
-def p2(ip: str) -> int:
+# this would be the "real" solution for all inputs
+# however it's too inefficient
+def p2_try2(ip: str) -> int:
 	dirs, nodes = parse(ip)
 	starts = [node for node in nodes.keys() if node.endswith('A')]
 	stops = {node for node in nodes.keys() if node.endswith('Z')}
 	stop_place_iterators = [stop_places(dirs, nodes, start, stops) for start in starts]
-	heap = []
-	heapq.heapify(heap)
+
+	for i, iterator in enumerate(stop_place_iterators):
+		print(starts[i], list(it.islice(iterator, 100)))
+
+	stop_place_iterators = [stop_places(dirs, nodes, start, stops) for start in starts]
+
+	counts = Counter()
 
 	while True:
-		nexts = []
+		# print(counts)
+		# input()
 
-		for iterator in stop_place_iterators:
-			try:
-				nexts.append(next(iterator))
-			except StopIteration:
-				nexts.append(float('inf'))
+		curs = [next(iterator) for iterator in stop_place_iterators]
 
-		print('stop_places', nexts)
+		for cur in curs:
+			counts[cur] += 1
 
-		for nxt in nexts:
-			heapq.heappush(heap, nxt)
+			if counts[cur] == len(starts):
+				return cur
 
-		if len(set(heap[:len(starts)])) <= 1:
-			return heap[0]
-		else:
-			fst = heap[0]
-			i = 0
+# turns out, for the input, there is always exactly one stop place within the repeat,
+# and its index is equal to the repeat_end minus the repeat_start
+# meaning the stop places just occur at multiples of (repeat_end - repeat_start)
+# meaning to find the stop place for all starts, we can just take the LCM
 
-			while heap[i] == fst:
-				i += 1
+def p2(ip: str) -> int:
+	dirs, nodes = parse(ip)
+	starts = [node for node in nodes.keys() if node.endswith('A')]
+	stops = {node for node in nodes.keys() if node.endswith('Z')}
+	cycle_infos = [cycle_info(dirs, nodes, start, stops) for start in starts]
+	ms = []
 
-			for _ in range(i):
-				heapq.heappop(heap)
+	for ci in cycle_infos:
+		repeat_start, repeat_end, initial_stop_places, stop_places_within_repeat = ci
+		m = repeat_end - repeat_start
+		ms.append(m)
+
+	return math.lcm(*ms)
+	# frst attempt: 84314908087948949100671
