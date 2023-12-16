@@ -1,7 +1,9 @@
 from enum import Enum
+import functools as ft
+import heapq
 import itertools as it
 import re
-from typing import Self
+from typing import Iterator, Self
 
 test_inputs = [('example', '''\
 RL
@@ -74,7 +76,7 @@ def steps(dirs: list[Dir], graph: Graph, start: str=START) -> Iterator[tuple[str
 
 	for direction in it.cycle(dirs):
 		yield cur, direction
-		cur = graph[cur][direcion.index]
+		cur = graph[cur][direction.index]
 
 def p1(ip: str) -> int:
 	dirs, nodes = parse(ip)
@@ -85,94 +87,83 @@ def p1(ip: str) -> int:
 
 def p2_naive(ip: str) -> int:
 	dirs, nodes = parse(ip)
-	curs = [node for node in nodes.keys() if node.endswith('A')]
+	starts = [node for node in nodes.keys() if node.endswith('A')]
 	stops = {node for node in nodes.keys() if node.endswith('Z')}
-	steps = 0
+	iterators = [steps(dirs, nodes, start) for start in starts]
 
-	for direction in it.cycle(dirs):
+	for i in it.count():
+		curs = [next(iterator)[0] for iterator in iterators]
 		print(curs)
 
 		if all(cur in stops for cur in curs):
-			return steps
+			return i
 
-		for i, cur in enumerate(curs):
-			curs[i] = nodes[cur][direction.index]
+def stop_places(dirs: list[Dir], graph: Graph, start: str, stops: set[str]) -> Iterator[int]:
+	print('computing stop_places for start ', start)
 
-		steps += 1
-
-def stop_places(dirs: list[Dir], graph: Graph, start: str) -> Iterator[int]:
-	stops = {node for node in nodes.keys() if node.endswith('Z')}
-	cur = start
 	visited = {}
-	steps = 0
-	initial_stop_places = set()
+	initial_stop_places = []
 
-	for direction in it.cycle(dirs):
-		visited[cur] = steps
+	for i, (node, direction) in enumerate(steps(dirs, graph, start)):
+		print(node, direction, end = ' . ')
 
-		if cur in stops:
-			yield steps
-			initial_stop_places.add(steps)
-
-		nxt = nodes[cur][direction.index]
-
-		if nxt in visited:
-			repeating_bit_start = visited[nxt]
-			repeating_bit_end = steps
+		if (node, direction) in visited:
+			repeat_start = visited[node, direction]
+			print('revisisted ', node, direction, 'at', i, 'steps, was first visited at', repeat_start)
+			repeat_end = i
 			break
-		elif 
+		else:
+			visited[node, direction] = i
+
+			if node in stops:
+				print('node in stops: ', node)
+				yield i
+				initial_stop_places.append(i)
+		
+	for i, p in enumerate(initial_stop_places):
+		if p >= repeat_start:
+			stop_places_within_repeat = initial_stop_places[i:]
+			break
+	else:
+		stop_places_within_repeat = []
+
+	if not stop_places_within_repeat:
+		return
+
+	for q in it.count(1):
+		for p in stop_places_within_repeat:
+			yield p + q * (repeat_end - repeat_start)
 
 def p2(ip: str) -> int:
 	dirs, nodes = parse(ip)
 	starts = [node for node in nodes.keys() if node.endswith('A')]
 	stops = {node for node in nodes.keys() if node.endswith('Z')}
-	z_indices = []
-	repeating_bits = []
+	stop_place_iterators = [stop_places(dirs, nodes, start, stops) for start in starts]
+	heap = []
+	heapq.heapify(heap)
 
-	for start in starts:
-		cur = start
-		visited = {}
-		steps = 0
-		z_indices_for_this_start = set()
-		repeating_bit = None
+	while True:
+		nexts = []
 
-		for direction in it.cycle(dirs):
-			visited[cur] = steps
-			nxt = nodes[cur][direction.index]
+		for iterator in stop_place_iterators:
+			try:
+				nexts.append(next(iterator))
+			except StopIteration:
+				nexts.append(float('inf'))
 
-			if nxt in visited:
-				repeating_bit = (visited[nxt], steps)
-				break
-			elif nxt in stops:
-				z_indices_for_this_start.add(steps)
-			else:
-				cur = nxt
+		print('stop_places', nexts)
 
-			steps += 1
+		for nxt in nexts:
+			heapq.heappush(heap, nxt)
 
-		z_indices.append(z_indices_for_this_start)
-		repeating_bits.append(repeating_bit)
+		if len(set(heap[:len(starts)])) <= 1:
+			return heap[0]
+		else:
+			fst = heap[0]
+			i = 0
 
-	# so for each starting node, we have
-	# n = index at which the repeating part of the sequence starts
-	# l = length of repeating part
-	# zs = indices at which stop is possible (all <= n + l)
+			while heap[i] == fst:
+				i += 1
 
-	# stops are possible at:
-	# - any indices equal to a z-value less than n
-	# - any indices i such that i - n modulo l is equal to a z-value
-
-	def all_z_indices(i):
-
-
-
-	# for each node we follow the path till we come back to the same node with the same starting direction
-	# we note at what indices we are at stops
-
-
-	for direction in it.cycle(dirs):
-		for i, cur in enumerate(curs):
-			if sequences[i][-1] == sequences[i][0]: # sequence is "complete"
-				cur = 
-
-			new_cur = nodes[cur][direction.index]
+			for _ in range(i):
+				heapq.heappop(heap)

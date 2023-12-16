@@ -1,5 +1,7 @@
+import itertools as it
 import functools as ft
 import operator
+from typing import Iterable, Iterator
 
 def range_includes(bigrange: range, lilrange: range) -> bool:
 	return bigrange.start <= lilrange.start and bigrange.stop >= lilrange.stop
@@ -9,3 +11,27 @@ def range_intersection(r1: range, r2: range) -> range:
 
 def prod(factors):
 	return ft.reduce(operator.mul, factors, 1)
+
+def interleave(it1: Iterable[int], it2: Iterable[int]) -> Iterator[int]:
+	"""Interleave two infinite increasing sequences to form a new increasing sequence.
+	
+	>>> evens = (i*2 for i in it.count())
+	>>> squares = (i**2 for i in it.count())
+	>>> list(it.islice(interleave(evens, squares), 15))
+	[0, 0, 1, 2, 4, 4, 6, 8, 9, 10, 12, 14, 16, 16, 18]
+	"""
+	nxt1 = it1.next()
+	nxt2 = it2.next()
+
+	while True:
+		while nxt1 <= nxt2:
+			yield nxt1
+			nxt1 = it1.next()
+
+		while nxt2 < nxt1:
+			yield nxt2
+			nxt2 = it2.next()
+
+if __name__ == '__main__':
+	import doctest
+	doctest.testmod()
