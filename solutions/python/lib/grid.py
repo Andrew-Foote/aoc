@@ -5,9 +5,11 @@ from solutions.python.lib.gint import gint, gint_rect
 
 # north-east-south-west (up-right-down-left) direction vectors
 NESW: tuple[gint, gint, gint, gint] = (gint(0, -1), gint(1, 0), gint(0, 1), gint(-1, 0))
+NORTH, EAST, SOUTH, WEST = NESW
 
 # ne-se-sw-nw
 NE_SE_SW_NW: tuple[gint, gint, gint, gint] = (gint(1, -1), gint(1, 1), gint(-1, 1), gint(-1, -1))
+NE, SE, SW, NW = NE_SE_SW_NW
 
 # n-ne-e-se-s-sw-w-nw
 COMPASS: tuple[gint, ...] = tuple(it.chain.from_iterable(
