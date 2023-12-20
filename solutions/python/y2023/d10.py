@@ -1,3 +1,4 @@
+import itertools as it
 from solutions.python.lib.gint import gint
 import solutions.python.lib.grid as grid
 
@@ -48,6 +49,75 @@ LJ...'''),
 14567
 23...'''),
         ('p1', 8)
+    ]),
+    ('example4', '''\
+...........
+.S-------7.
+.|F-----7|.
+.||.....||.
+.||.....||.
+.|L-7.F-J|.
+.|..|.|..|.
+.L--J.L--J.
+...........''', [
+        ('p2', 4),
+        ('enclosed_map', '''\
+...........
+.S-------7.
+.|F-----7|.
+.||.....||.
+.||.....||.
+.|L-7.F-J|.
+.|II|.|II|.
+.L--J.L--J.
+...........''')
+    ]),
+    ('example5', '''\
+..........
+.S------7.
+.|F----7|.
+.||....||.
+.||....||.
+.|L-7F-J|.
+.|..||..|.
+.L--JL--J.
+..........''', [
+        ('p2', 4),
+        ('enclosed_map', '''\
+..........
+.S------7.
+.|F----7|.
+.||....||.
+.||....||.
+.|L-7F-J|.
+.|II||II|.
+.L--JL--J.
+..........''')
+    ]),
+    ('example6', '''\
+.F----7F7F7F7F-7....
+.|F--7||||||||FJ....
+.||.FJ||||||||L7....
+FJL7L7LJLJ||LJ.L-7..
+L--J.L7...LJS7F-7L7.
+....F-J..F7FJ|L7L7L7
+....L7.F7||L7|.L7L7|
+.....|FJLJ|FJ|F7|.LJ
+....FJL-7.||.||||...
+....L---J.LJ.LJLJ...''', [
+        ('enclosed_map', '''\
+.F----7F7F7F7F-7....
+.|F--7||||||||FJ....
+.||.FJ||||||||L7....
+FJL7L7LJLJ||LJIL-7..
+L--J.L7IIILJS7F-7L7.
+....F-JIIF7FJ|L7L7L7
+....L7IF7||L7|IL7L7|
+.....|FJLJ|FJ|F7|.LJ
+....FJL-7.||.||||...
+....L---J.LJ.LJLJ...
+'''),
+        ('p2', 8)
     ])
 ]
 
@@ -59,6 +129,17 @@ PIPES = {
     '7': (grid.SOUTH, grid.WEST),
     'F': (grid.SOUTH, grid.EAST),
 }
+
+def pipes_are_opposite(p1: str, p2: str, hv: bool) -> bool:
+    #print('pipes_are_opposite', p1, p2, end = ' ')
+
+    if hv:
+        res = grid.EAST in PIPES[p1] and grid.WEST in PIPES[p2]
+    else:
+        res = grid.SOUTH in PIPES[p1] and grid.NORTH in PIPES[p2]
+
+    #print('hv', hv, 'res', res)
+    return res
 
 # . no pipe
 # S start, plus pipe of unknown shape
@@ -80,7 +161,12 @@ def get_s_location(thegrid: grid.Grid[str]) -> gint:
         if thegrid[z] == 'S':
             return z
 
-def main_loop(thegrid: grid.Grid[str]) -> tuple[gint, list[tuple[gint, gint, int]], list[tuple[gint, gint, int]]]:
+def main_loop(thegrid: grid.Grid[str]) -> tuple[
+    gint,
+    list[tuple[gint, gint, int]],
+    list[tuple[gint, gint, int]],
+    tuple[gint, gint]
+]:
     s_loc = get_s_location(thegrid)
 
     # find the two pipes connecting to S
@@ -97,6 +183,7 @@ def main_loop(thegrid: grid.Grid[str]) -> tuple[gint, list[tuple[gint, gint, int
     assert len(connectors) == 2
     steps1 = [connectors[0]]
     steps2 = [connectors[1]]
+    sdirs = (connectors[0][1], connectors[1][1])
 
     # follow the path from each connector till they meet; this will be the point
     # of furthest distance
@@ -104,14 +191,10 @@ def main_loop(thegrid: grid.Grid[str]) -> tuple[gint, list[tuple[gint, gint, int
     cur1, cur2 = connectors
 
     while True:
-        print('cur is', cur1)
         cur1_loc, cur1_dir, cur1_steps = cur1
         cur_pipe = PIPES[thegrid[cur1_loc]]
-        print(cur_pipe, cur_pipe[0], cur_pipe[1])
         next_dir = [next_dir for next_dir in cur_pipe if next_dir != -cur1_dir][0]
-        print('nextidr is', next_dir)
         next_loc = cur1_loc + next_dir
-        print(next_loc, thegrid[next_loc], repr(next_dir), repr(-next_dir), PIPES[thegrid[next_loc]], -next_dir in PIPES[thegrid[next_loc]])
         assert thegrid[next_loc] in PIPES and -next_dir in PIPES[thegrid[next_loc]]
         cur1 = next_loc, next_dir, cur1_steps + 1
         steps1.append(cur1)
@@ -128,61 +211,119 @@ def main_loop(thegrid: grid.Grid[str]) -> tuple[gint, list[tuple[gint, gint, int
             assert cur1[2] == cur2[2]
             break
 
-    return s_loc, steps1, steps2
+    return s_loc, steps1, steps2, sdirs
 
 def main_loop_pic(ip: str) -> str:
     thegrid = parse(ip)
-    s_loc, steps1, steps2 = main_loop(thegrid)
+    s_loc, steps1, steps2, sdirs = main_loop(thegrid)
     in_the_loop = {s_loc} | {loc for loc, _, _ in steps1} | {loc for loc, _, _ in steps2}
     pic = thegrid.rect().picture(lambda loc: (thegrid[loc] if loc in in_the_loop else '.'))
-    print(pic)
     return pic
 
 def distance_map(ip: str) -> str:
     thegrid = parse(ip)
-    s_loc, steps1, steps2 = main_loop(thegrid)
+    s_loc, steps1, steps2, sdirs = main_loop(thegrid)
     in_the_loop = {s_loc: 0} | {loc: count for loc, _, count in steps1} | {loc: count for loc, _, count in steps2}
     pic = thegrid.rect().picture(lambda loc: (str(in_the_loop[loc]) if loc in in_the_loop else '.'))
+    return pic
+
+def p1(ip: str) -> int:
+    thegrid = parse(ip)
+    s_loc, steps1, steps2, sdirs = main_loop(thegrid) 
+    in_the_loop = {s_loc} | {loc for loc, _, _ in steps1} | {loc for loc, _, _ in steps2}
+    pic = thegrid.rect().picture(lambda loc: (thegrid[loc] if loc in in_the_loop else '.'))
+    print(pic)
+    assert steps1[-1][2] == steps2[-1][2]
+    return steps1[-1][2]
+
+def get_outside_loop_set(ip: str) -> set[gint]:
+    thegrid = parse(ip)
+    s_loc, steps1, steps2, sdirs = main_loop(thegrid)
+
+    for pstr, dirs in PIPES.items():
+        if set(dirs) == set(sdirs):
+            thegrid[s_loc] = pstr
+
+    loop = {s_loc} | {loc for loc, _, _ in steps1} | {loc for loc, _, _ in steps2}
+
+    def neighbours(point):
+        # adjacent points, not including those where there's a boundary in between
+        for direction in grid.NESW:
+            adj = point + direction
+
+            if adj not in thegrid.rect():
+                continue
+
+            if direction == grid.NORTH:
+                spaces = point + grid.NW, point + grid.NORTH
+                hv = True # horizontal
+            elif direction == grid.EAST:
+                spaces = point + grid.NE, point
+                hv = False # vertical
+            elif direction == grid.SOUTH:
+                spaces = point + grid.WEST, point
+                hv = False
+            elif direction == grid.WEST:
+                spaces = point + grid.NW, point + grid.WEST
+                hv = True
+
+            space1, space2 = spaces
+            # print('dir', direction, 'spaces', spaces, 'space1 in loop', space1 in loop, 'space2 in loop', space2 in loop)
+            # print('spaces: ', thegrid[space1], thegrid[space2])
+
+            if (
+                space1 in loop and space2 in loop
+                and pipes_are_opposite(thegrid[space1], thegrid[space2], hv)
+            ):
+                # print('direction', direction, 'GEBLOCKED at', point, 'spaces: ', spaces)
+                continue
+
+            yield adj
+
+    outside_loop = {gint(0, 0)}
+    new_outside_loop = [gint(0, 0)]
+
+    while True:
+        #print(thegrid.rect().picture(lambda loc: ('#' if loc not in outside_loop else thegrid[loc])))
+        nbs = set(it.chain.from_iterable(map(neighbours, new_outside_loop)))
+        new_outside_loop = nbs - outside_loop
+
+        if not new_outside_loop:
+            break
+
+        outside_loop.update(new_outside_loop)
+
+    return outside_loop 
+
+def enclosed_map(ip: str) -> str:
+    thegrid = parse(ip)
+    outside_loop = get_outside_loop_set(ip)
+    print(thegrid.rect().picture(lambda loc: 'O' if loc in outside_loop else 'I'))
+    pic = thegrid.rect().picture(lambda loc: ('I' if loc not in outside_loop and thegrid[loc] == '.' else thegrid[loc]))
     print(pic)
     return pic
 
-def p1(ip: str) -> grid.Grid[str]:
+def p2(ip: str) -> int:
     thegrid = parse(ip)
-    s_loc = get_s_location(thegrid)
+    outside_loop = get_outside_loop_set(ip)
+    return sum(1 for z in thegrid.rect() if z not in outside_loop and thegrid[z] == '.')
 
-    # find the two pipes connecting to S
-    connectors = []
 
-    for direction in grid.NESW:
-        neighbour = s_loc + direction
-        val = thegrid[neighbour]
+    # start with a point on the outside
 
-        if val in PIPES:
-            if -direction in PIPES[val]:
-                connectors.append((neighbour, direction, 1))
+    # we should be able to divide the grid into two regions, inside-the-loop
+    # and outside-the-loop, using a flood fill strategy
+    # we can identify outside by the fact that it includes points on the edge
+    # of the grid
+    # we should consider points 0.5 between the original points
 
-    assert len(connectors) == 2
-
-    # follow the path from each connector till they meet; this will be the point
-    # of furthest distance
-
-    cur1, cur2 = connectors
-
-    while True:
-        cur1_loc, cur1_dir, cur1_steps = cur1
-        cur_pipe = PIPES[thegrid[cur1_loc]]
-        next_dir = [next_dir for next_dir in cur_pipe if next_dir != -cur1_dir][0]
-        next_loc = cur1_loc + next_dir
-        assert thegrid[next_loc] in PIPES and -next_dir in PIPES[thegrid[next_loc]]
-        cur1 = next_loc, next_dir, cur1_steps + 1
-
-        cur2_loc, cur2_dir, cur2_steps = cur2
-        cur_pipe = PIPES[thegrid[cur2_loc]]
-        next_dir = [next_dir for next_dir in cur_pipe if next_dir != -cur2_dir][0]
-        next_loc = cur2_loc + next_dir
-        assert thegrid[next_loc] in PIPES and -next_dir in PIPES[thegrid[next_loc]]
-        cur2 = next_loc, next_dir, cur2_steps + 1
-
-        if cur1[0] == cur2[0]:
-            assert cur1[2] == cur2[2]
-            return cur1[2]
+    # O _ O _ O
+    #  |_| |_|
+    # O _ O _ O
+    #  |_| |_|
+    # O   O   O
+    #  
+    # the Os are points
+    # there are four adjacent grid-spaces, one on each corner
+    # between two Os that are adjacent horizontally/vertically, there are exactly 2 grid-spaces
+    # we can pass between Os as long as the loop doesn't go *across* those grid-spaces
