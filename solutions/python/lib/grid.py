@@ -341,6 +341,9 @@ class Grid(Generic[T]):
 
         self.origin = origin
 
+    def __hash__(self):
+        return hash(tuple(tuple(row) for row in self.rows))
+
     @property
     def width(self) -> int:
         return len(self.rows[0])
