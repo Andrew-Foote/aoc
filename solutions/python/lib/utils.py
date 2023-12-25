@@ -3,6 +3,22 @@ import functools as ft
 import operator
 from typing import Iterable, Iterator
 
+def common_value(first, *rest):
+    assert all(i == first for i in rest)
+    return first
+
+def fiter(f, n, x):
+    y = x
+
+    for _ in range(n):
+        y = f(y)
+
+    return y
+
+def sgn(x):
+    if x == 0:
+        return 0
+
 def range_includes(bigrange: range, lilrange: range) -> bool:
 	return bigrange.start <= lilrange.start and bigrange.stop >= lilrange.stop
 

@@ -371,6 +371,20 @@ class Grid(Generic[T]):
     def __setitem__(self, p: gint, v: T) -> None:
         self.rows[p.imag - self.origin.imag][p.real - self.origin.real] = v
 
+    @property
+    def cols(self: Self) -> list[list[T]]:
+        cols = []
+
+        for j in range(self.width):
+            col = []
+
+            for i in range(self.height):
+                col.append(self[gint(j, i)])
+
+            cols.append(col)
+
+        return cols
+
 @dataclass
 class DefaultGrid(Generic[T]):
     """An infinite grid whose values outside of a finite region are computed by a callback."""
