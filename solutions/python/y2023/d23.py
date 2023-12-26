@@ -1,10 +1,12 @@
+from collections import deque
 import functools as ft
 from typing import Iterator
 import solutions.python.lib.grid as g
 from solutions.python.lib.gint import gint
+from solutions.python.lib.graph import gbfs
 
 test_inputs = [
-	('example', '''\
+    ('example', '''\
 #.#####################
 #.......#########...###
 #######.#########.#.###
@@ -28,11 +30,11 @@ test_inputs = [
 #.###.###.#.###.#.#v###
 #.....###...###...#...#
 #####################.#''',
-	[
-		('hike_lens_csv', '74,82,82,86,90,94'),
-		('p1', 94),
-		('p2', 154)
-	])
+    [
+        ('hike_lens_csv', '74,82,82,86,90,94'),
+        ('p1', 94),
+        ('p2', 154)
+    ])
 ]
 
 # path = .
@@ -54,87 +56,123 @@ test_inputs = [
 
 # ok, so given a route, we can compute the possible routes after the next step
 
-def parse(ip: int) -> g.Grid:
-	return g.Grid(ip.splitlines())
+def parse_to_grid(ip: int) -> g.Grid:
+    return g.Grid(ip.splitlines())
 
 SLOPES = {
-	'<': g.WEST,
-	'>': g.EAST,
-	'^': g.NORTH,
-	'v': g.SOUTH
+    '<': g.WEST,
+    '>': g.EAST,
+    '^': g.NORTH,
+    'v': g.SOUTH
 }
 
-def accessible_neighbours(grid: g.Grid, point: gint, p2: bool=False) -> Iterator[gint]:
-	v = grid[point]
+def parse_to_graph(ip: int, p2: bool=False) -> tuple[dict[gint, set[gint]], gint, gint]:
+    grid = parse_to_grid(ip)
+    graph = {}
 
-	if v in SLOPES and not p2:
-		neighbours = [point + SLOPES[v]]
-	else:
-		neighbours = [point + d for d in g.NESW]
+    for point in grid.rect():
+        v = grid[point]
 
-	for n in neighbours:
-		if n in grid.rect() and grid[n] != '#':
-			yield n
+        if v == '#':
+            continue
 
-Path = tuple[frozenset[gint], gint]
+        if v == '.':
+            if point.imag == 0:
+                start = point
+            elif point.imag == grid.height - 1:
+                end = point
 
-@ft.cache
-def possible_path_extensions(grid: g.Grid, path: Path, p2: bool=False) -> list[Path]:
-	result = []
+        if v in SLOPES and not p2:
+            neighbours = {point + SLOPES[v]}
+        else:
+            neighbours = {point + d for d in g.NESW}
 
-	for neighbour in accessible_neighbours(grid, path[1], p2):
-		if neighbour not in path[0] and neighbour != path[1]:
-			result.append((path[0] | frozenset({path[1]}), neighbour))
+        neighbours = {n for n in neighbours if n in grid.rect() and grid[n] != '#'}
+        graph[point] = neighbours
 
-	while len(result) == 1 and result[0][1].imag != grid.height - 1:
-		path = (path[0] | frozenset({path[1]}), result[0][1])
-		result = []
+    return graph, start, end
 
-		for neighbour in accessible_neighbours(grid, path[1], p2):
-			if neighbour not in path[0] and neighbour != path[1]:
-				result.append((path[0] | frozenset({path[1]}), neighbour))
+def parse_to_weighted_graph(ip: int, p2: bool=False) -> tuple[dict[gint, dict[gint, int]], gint, gint]:
+    graph, start, end = parse_to_graph(ip, p2)
+    junctions = set()
 
-	return result
+    for point, neighbours in graph.items():
+        assert len(neighbours) > 0
 
-def find_start(grid: g.Grid):
-	for i in range(grid.width):
-		if grid[gint(i, 0)] == '.':
-			return gint(i, 0)
+        if len(neighbours) != 2:
+            junctions.add(point)
 
-def find_end(grid: g.Grid):
-	for i in range(grid.width):
-		if grid[gint(i, grid.height - 1)] == '.':
-			return gint(i, grid.height - 1)
+    new_graph = {}
 
-def hikes(grid: g.Grid, p2: bool=False) -> list[list[gint]]:
-	start = find_start(grid)
-	end = find_end(grid)
+    for junction in junctions:
+        new_graph[junction] = {}
 
-	paths = [ (frozenset(), start) ]
-	successful_paths = []
+        for neighbour in graph[junction]:
+            point = junction
+            n = neighbour
+            d = 1
 
-	while paths:
-		new_paths = []
+            while n not in junctions:
+                nns = sorted(graph[n], key=lambda nn: nn == point)
+                assert len(nns) == 2
+                point = n
+                n = nns[0]
+                d += 1
 
-		for path in paths:
-			if path[1] == end:
-				successful_paths.append(path)
-			else:
-				new_paths.extend(possible_path_extensions(grid, path, p2))
+            new_graph[junction][n] = d
 
-		print(len(new_paths), len(successful_paths))
-		paths = new_paths
+    return new_graph, start, end
 
-	return successful_paths
+Path = tuple[frozenset[gint], gint, int]
+
+def path_cons(path: Path, point: gint, weight: int) -> Path:
+    return (path[0] | frozenset({path[1]}), point, weight)
+
+def path_terminus(path: Path) -> gint:
+    return path[1]
+
+def path_length(path: Path) -> int:
+    return path[2]
+
+def path_contains(path: Path, point: gint) -> bool:
+    return point in path[0] or point == path[1]
+
+def hikes(ip: str, p2: bool=False) -> list[Path]:
+    graph, start, end = parse_to_weighted_graph(ip, p2)
+
+    def child_paths(path: Path) -> Iterator[Path]:
+        t = path_terminus(path)
+        l = path_length(path)
+
+        for neighbour, weight in graph[t].items():
+            if not path_contains(path, neighbour):
+                yield path_cons(path, neighbour, l + weight)
+
+    paths = [(frozenset(), start, 0)]
+    successful_paths = []
+
+    while paths:
+        new_paths = []
+
+        for path in paths:
+            if path_terminus(path) == end:
+                successful_paths.append(path)
+            else:
+                new_paths.extend(child_paths(path))
+
+        print(len(new_paths), len(successful_paths))
+        paths = new_paths
+
+    return successful_paths
 
 def hike_lens(ip: str, p2: bool=False) -> list[int]:
-	return sorted(len(hike[0]) for hike in hikes(parse(ip), p2))
+    return sorted(path_length(hike) for hike in hikes(ip, p2))
 
 def hike_lens_csv(ip: str) -> str:
-	return ','.join(map(str, hike_lens(ip)))
+    return ','.join(map(str, hike_lens(ip)))
 
 def p1(ip: str) -> int:
-	return max(hike_lens(ip))
+    return max(hike_lens(ip))
 
 def p2(ip: str) -> int:
-	return max(hike_lens(ip, True))
+    return max(hike_lens(ip, True))
