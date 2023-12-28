@@ -1,147 +1,195 @@
-from dataclasses import dataclass
-from enum import Enum
-from solutions.python.lib import linopt
+from scipy import sparse
+import numpy as np
+from solutions.python.lib.gint import gint
+import solutions.python.lib.grid as g
 
-# turn based battle, player vs boss
-# player goes first
-# attack causes >= 1 damage
-# first to get to 0 hp loses
-# damage dealt = 
-# max( (attacker damage score) - (defender armor score), 1 )
-# player hp = 100
-# player damage score is the sum of their items' damage scores
-# likewise for armor
-# you have to wear exactly one weapon, at most one piece of armor,
-# and at most 2 rings. Rings are unique
-
-@dataclass
-class Actor:
-	hp: int
-	dmg: int
-	arm: int
-
-class ItemSort(Enum):
-	WEAPON = 0
-	ARMOR = 1
-	RING = 2
-
-@dataclass
-class Item:
-	sort: ItemSort
-	name: str
-	cost: int
-	dmg: int
-	arm: int
-
-WEAPONS = [
-	('Dagger', 8, 4, 0),
-	('Shortsword', 10, 5, 0),
-	('Warhammer', 25, 6, 0),
-	('Longsword', 40, 7, 0),
-	('Greataxe', 74, 8, 0)
+test_inputs = [
+	('example', '''\
+...........
+.....###.#.
+.###.##..#.
+..#.#...#..
+....#.#....
+.##..S####.
+.##..#...#.
+.......##..
+.##.#.####.
+.##..##.##.
+...........''', [
+		('one_step', '''\
+...........
+.....###.#.
+.###.##..#.
+..#.#...#..
+....#O#....
+.##.OS####.
+.##..#...#.
+.......##..
+.##.#.####.
+.##..##.##.
+...........'''),
+		('two_step', '''\
+...........
+.....###.#.
+.###.##..#.
+..#.#O..#..
+....#.#....
+.##O.O####.
+.##.O#...#.
+.......##..
+.##.#.####.
+.##..##.##.
+...........'''),
+		('three_step', '''\
+...........
+.....###.#.
+.###.##..#.
+..#.#.O.#..
+...O#O#....
+.##.OS####.
+.##O.#...#.
+....O..##..
+.##.#.####.
+.##..##.##.
+...........'''),
+		('six_step', '''\
+...........
+.....###.#.
+.###.##.O#.
+.O#O#O.O#..
+O.O.#.#.O..
+.##O.O####.
+.##.O#O..#.
+.O.O.O.##..
+.##.#.####.
+.##O.##.##.
+...........'''),
+		('six_step_count', 16),
+		('p1', 23),
+		('ten_step_count', 50),
+		('fifty_step_count', 1594),
+		('hundred_step_count', 6536),
+		('five_hundred_step_count', 167004),
+		('thousand_step_count', 668697),
+		('five_thousand_step_count', 16733044)
+	])
 ]
 
-ARMOR = [
-	('Leather', 13, 0, 1),
-	('Chainmail', 31, 0, 2),
-	('Splintmail', 53, 0, 3),
-	('Bandedmail', 75, 0, 4),
-	('Platemail', 102, 0, 5),
-	('No Armor', 0, 0, 0),
-]
+# S = start
+# . or S = garden plots
+# # = rocks
+# elf can only move through plots
+# he needs to get 64 steps - q is how many different plots he could
+# potentially arrive at at the end of those steps?
 
-RINGS = [
-	('Damage +1', 25, 1, 0),
-	('Damage +2', 50, 2, 0),
-	('Damage +3', 100, 3, 0),
-	('Defense +1', 20, 0, 1),
-	('Defense +2', 40, 0, 2),
-	('Defense +3', 80, 0, 3),
-	('No Ring in Slot 1', 0, 0, 0),
-	('No Ring in Slot 2', 0, 0, 0),
-]
+# in other words what is the set of endpoints of all 64-step paths through the graph
 
-ITEMS = [
-	*(Item(ItemSort.WEAPON, name, cost, dmg, arm) for name, cost, dmg, arm in WEAPONS),
-	*(Item(ItemSort.ARMOR, name, cost, dmg, arm) for name, cost, dmg, arm in ARMOR),
-	*(Item(ItemSort.RING, name, cost, dmg, arm) for name, cost, dmg, arm in RINGS)
-]
+def parse_to_grid(ip: str) -> g.Grid:
+	return g.Grid(ip.splitlines())
 
-def damage_dealt(attacker: Actor, defender: Actor) -> int:
-	return max(attacker.dmg - defender.arm, 1)
+def parse_to_graph(grid: g.Grid) -> tuple[set[tuple[gint, gint]], gint]:
+	graph = set()
 
-def does_player_win(player: Actor, enemy: Actor) -> bool:
-	pdd = damage_dealt(player, enemy)
-	edd = damage_dealt(enemy, player)
-	# each turn, player deals pdd damage and enemy deals edd damage
-	# so in n rounds, player hp is down by n * edd, enemy hp is down by n * pdd
-	# game ends when n * edd exceeds player hp, or n * pdd exceeds enemy hp
-	# n * edd >= php   OR   n * pdd >= ehp
-	# n >= php/edd     OR   n >= ehp/pdd
-	# so the game ends when n exceeds min(php/edd, ehp/pdd)
-	# and player wins if ehp/pdd is smaller (or equal, since player goes first)
-	# in other words if ehp/pdd <= php/edd
-	# or equivalenlty ehp * edd <= php * pdd
-	return enemy.hp * edd <= player.hp * pdd
+	for z in grid.rect():
+		if grid[z] == '#':
+			continue
+		elif grid[z] == 'S':
+			start = z
 
-def parse(ip: str) -> Actor:
-	lines = ip.splitlines()
-	print(lines)
-	hp, dmg, arm = [line.split(':')[1].strip() for line in lines]
-	return Actor(hp, dmg, arm)
+		for d in g.NESW:
+			if z + d in grid.rect() and grid[z + d] != '#':
+				graph.add((z, z + d))
 
-class Attr(Enum):
-	COST = 'cost'
-	DAMAGE = 'damage'
-	ARMOR = 'armor'
+	return graph, start
+	# we want the row/col of the adjmat containing the S point, and we want to know how many entries are nonzero
 
-class Slot(Enum):
-	WEAPON = 'weapon'
-	ARMOR = 'armor'
-	RING1 = 'ring1'
-	RING2 = 'ring2'
+def node_list(graph: set[tuple[gint, gint]]) -> list[gint]:
+	return sorted({e[0] for e in graph} | {e[1] for e in graph}, key=lambda z: (z.real, z.imag))
+
+def adj_matrix(graph: set[tuple[gint, gint]], start: gint) -> tuple[sparse.csr_array, int]:
+	nodes = node_list(graph)
+	print('NODES COUNT: ', len(nodes))
+	m = sparse.dok_array((len(nodes),) * 2, dtype=np.ubyte)
+
+	for i, n1 in enumerate(nodes):
+		print(i)
+		for j, n2 in enumerate(nodes):
+			m[i, j] = int((n1, n2) in graph)
+
+		if n1 == start:
+			start_index = i
+
+	# this is still very slow :(
+
+	return m.tocsr(), start_index
+
+def step(m: sparse.dok_array, count: int) -> sparse.csr_array:
+	# apparently scipy doesn't have a matrix power function for sparse arrays;
+	# m ** count does it element-wise
+
+	if count == 0:
+		return sparse.csr_array(sparse.eye(m.shape[0]))
+
+	q, r = divmod(count, 2)
+	m_to_q = step(m, q)
+	result = m_to_q @ m_to_q
+
+	if r:
+		result @= m
+
+	return result
+
+def step_pic(ip: str, count: int) -> str:
+	grid = parse_to_grid(ip)
+	graph, start = parse_to_graph(grid)
+	nodes = node_list(graph)
+	point_to_index_map = {z: i for i, z in enumerate(nodes)}
+	m, start_index = adj_matrix(graph, start)
+	m = step(m, count)
+
+	def picmaker(z: gint) -> str:
+		if z not in point_to_index_map:
+			assert grid[z] == '#', z
+			return '#'
+		elif m[start_index, point_to_index_map[z]] > 0:
+			assert grid[z] in '.S'
+			return 'O'
+		elif z == start:
+			return 'S'
+		else:
+			assert grid[z] == '.'
+			return '.'
+
+	p = grid.rect().picture(picmaker)
+	print()
+	print(p)
+	print()
+	return p
+
+def step_count(ip: str, count: int) -> str:
+	grid = parse_to_grid(ip)
+	graph, start = parse_to_graph(grid)
+	nodes = node_list(graph)
+	point_to_index_map = {z: i for i, z in enumerate(nodes)}
+	m, start_index = adj_matrix(graph, start)
+	m = step(m, count)
+	return sum(1 for j, _ in enumerate(nodes) if m[start_index, j] > 0)
+
+def one_step(ip: str) -> str: return step_pic(ip, 1)
+def two_step(ip: str) -> str: return step_pic(ip, 2)
+def three_step(ip: str) -> str: return step_pic(ip, 3)
+def six_step(ip: str) -> str: return step_pic(ip, 6)
+def six_step_count(ip: str) -> int: return step_count(ip, 6)
 
 def p1(ip: str) -> int:
-	boss = parse(ip)
-	vs = {}
+	return step_count(ip, 64)
 
-	for slot in Slot:
-		for attr in Attr:
-			vs[slot, attr] = linopt.var(f'{slot} {attr}')
+def p2(ip: str) -> int:
+	base_grid = parse_to_grid(ip)
 
-	objective = sum(vs[slot, Attr.COST] for slot in Slot)
-	player_dmg = sum(vs[slot, Attr.DAMAGE] for slot in Slot)
-	player_arm = sum(vs[slot, Attr.ARMOR] for slot in SLOT)
+	grid = g.DefaultGrid(
+		lambda z: base_grid[z.real % base_grid.width, z.imag % base_grid.height],
+		base_grid
+	)
+
 	
-	constraint_sets = [
-		[
-			linopt.ge(boss.dmg - player_arm, 1),
-			linopt.ge(player_dmg - boss.dmg, 1),
-			linopt.le(boss.hp * (boss.dmg - player_arm), player.hp * (player_dmg - boss.arm))
-		],
-		[
-			linopt.le(boss.dmg - player_arm, 1),
-			linopt.ge(player_dmg - boss.dmg, 1),
-			linopt.le(boss.hp, player.hp * (player_dmg - boss.arm))
-		],
-		[
-			linopt.ge(boss.dmg - player_arm, 1),
-			linopt.le(player_dmg - boss.dmg, 1),
-			linopt.le(boss.hp * (boss.dmg - player_arm), player.hp)
-		],
-		[
-			linopt.le(boss.dmg - player_arm, 1),
-			linopt.le(player_dmg - boss.dmg, 1),
-			linopt.le(boss.hp, player.hp)
-		]
-	]
-
-	poss_results = []
-
-	for constraint_set in constraint_sets:
-		x, res = linopt.solve(objective, constraint_set)
-		print(x, res)
-		poss_results.append(res)
-
-	return min(poss_results)
-
