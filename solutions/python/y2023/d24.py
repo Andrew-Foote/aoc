@@ -163,6 +163,34 @@ def p2(ip: str) -> int:
 	#           p + t_n v = p_n + t_n v_n,
 	# where p_i, v_i are the position, velocity of each hailstone
 	# 
+	# for the individual coordinates we can rearrange the equation to isolate t_i:
+	# (assuming vc_i - vc is nonzero for each coordinate axis c)
+	#
+	# px + t_1 vx = px_1 + t_1 vx_1  =>  t_1 = (px_1 - px)/(vx_1 - vx)
+	# py + t_1 vy = py_1 + t_1 vy_1  =>  t_1 = (py_1 - py)/(vy_1 - vy)
+	# pz + t_1 vz = pz_1 + t_1 vz_1  =>  t_1 = (pz_1 - pz)/(vz_1 - vz)
+	#
+	# if vx_1 = vx then px = px_1
+	#
+	# this implies
+	#
+	# (px_1 - px)/(vx_1 - vx) = (py_1 - py)/(vy_1 - vy) = (pz_1 - pz)/(vz_1 - vz)
+	# i.e.
+	# (px_1 - px)(vy_1 - vy) = (py_1 - py)(vx_1 - vx)
+	#   =>  px_1 vy_1 - px_1 vy - vy_1 px + px vy = py_1 vx_1 - py_1 vx - vx_1 py + py vx
+	#   =>  px vy - py vx = px_1 vy + vy_1 px - py_1 vx - vx_1 py + py_1 vx_1 - px_1 vy_1
+	# (px_1 - px)(vz_1 - vz) = (pz_1 - pz)(vx_1 - vx)
+	#   =>  px_1 vz_1 - px_1 vz - vz_1 px + px vz = pz_1 vx_1 - pz_1 vx - vx_1 pz + pz vx
+	#   =>  px vz - pz vx = px_1 vz + vz_1 px - pz_1 vx - vx_1 pz - px_1 vz_1 + pz_1 vx_1
+	# (py_1 - py)(vz_1 - vz) = (pz_1 - pz)/(vy_1 - vy)
+	#   =>  py_1 vz_1 - py_1 vz - vz_1 py + py vz = pz_1 vy_1 - pz_1 vy - vy_1 pz + pz vy
+	#   =>  py vz - pz vy = py_1 vz + vz_1 py - pz_1 vy - vy_1 pz - py_1 vz_1 + pz_1 vy_1
+	#
+	# px_1 VY + vy_1 PX - py_1 VX - vx_1 PY + py_1 vx_1 - px_1 vy_1
+	# = px_1 VZ + vz_1 PX - pz_1 VX - vx_1 PZ - px_1 vz_1 + pz_1 vx_1
+	#   =>  px_1 VY + vy_1 PX - py_1 VX - vx_1 PY - px_1 VZ - vz_1 PX + pz_1 VX + vx_1 PZ
+	#       = px_1 vy_1 - py_1 vx_1 - px_1 vz_1 + pz_1 vx_1
+	#  
 
 	# -t_1/t_2 p - t_1 v = -t_1/t_2 p_2 - t_1 v_2
 	# p - t_1/t_2 p = p_1 + t_1 v_1 - t_1/t_2 p_2 - t_1 v_2
