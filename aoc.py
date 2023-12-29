@@ -315,7 +315,7 @@ class AOC:
                 'recorded by this tool.'
             )
 
-            success = self.find_submitted_answer_and_compare(year, day, part, answer)
+            success = self.find_submitted_answers_and_compare(year, day, part, answer)
         else:
             print('Unexpected response format! Assuming it was the wrong answer...\n')
             success = False

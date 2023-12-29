@@ -316,12 +316,12 @@ def get_outside_loop_set(ip: str) -> set[gint]:
     new_outside_loop = list(outside_loop)
 
     while True:
-        print()
-        # my code for p2() didn't work here, but by just copy-pasting the final form of this picture into my editor,
-        # and ctrl+f-ing for the string ' .', and counting the number of matches, i got the right answer
-        # (file d10_pic.txt contains the picture that was printed)
-        print(thegrid.rect().picture(lambda loc: (('^' if loc in loop else "'") + thegrid[loc] if loc in outside_loop else ('@' if loc in loop else ' ') + thegrid[loc])))
-        print()
+        # print()
+        # # my code for p2() didn't work here, but by just copy-pasting the final form of this picture into my editor,
+        # # and ctrl+f-ing for the string ' .', and counting the number of matches, i got the right answer
+        # # (file d10_pic.txt contains the picture that was printed)
+        # print(thegrid.rect().picture(lambda loc: (('^' if loc in loop else "'") + thegrid[loc] if loc in outside_loop else ('@' if loc in loop else ' ') + thegrid[loc])))
+        # print()
         nbs = set(it.chain.from_iterable(map(neighbours, new_outside_loop)))
         new_outside_loop = nbs - outside_loop
 
@@ -330,11 +330,11 @@ def get_outside_loop_set(ip: str) -> set[gint]:
 
         outside_loop.update(new_outside_loop)
 
-    return outside_loop 
+    return loop, outside_loop 
 
 def enclosed_map(ip: str) -> str:
     thegrid = parse(ip)
-    outside_loop = get_outside_loop_set(ip)
+    loop, outside_loop = get_outside_loop_set(ip)
     print(thegrid.rect().picture(lambda loc: 'O' if loc in outside_loop else 'I'))
     pic = thegrid.rect().picture(lambda loc: ('I' if loc not in outside_loop and thegrid[loc] == '.' else thegrid[loc]))
     print(pic)
@@ -342,8 +342,8 @@ def enclosed_map(ip: str) -> str:
 
 def p2(ip: str) -> int:
     thegrid = parse(ip)
-    outside_loop = get_outside_loop_set(ip)
-    return sum(1 for z in thegrid.rect() if z not in outside_loop and thegrid[z] == '.')
+    loop, outside_loop = get_outside_loop_set(ip)
+    return sum(1 for z in thegrid.rect() if z not in outside_loop and z not in loop)
 
 
     # start with a point on the outside
