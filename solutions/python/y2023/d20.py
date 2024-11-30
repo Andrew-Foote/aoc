@@ -1,6 +1,7 @@
 from collections import Counter, defaultdict, deque
 from dataclasses import dataclass
 from enum import Enum
+import itertools as it
 from typing import Iterator, Self
 from solutions.python.lib.utils import prod
 from utils import joinlines
@@ -233,6 +234,8 @@ def four_press_pulses(ip: str) -> str:
 def five_press_pulses(ip: str) -> str:
 	return n_press_pulses(ip, 5)
 
+# get per-dst counts?
+
 def pulse_counts_per_n_presses(ip: str, n: int) -> Counter[Pulse]:
 	mods = parse(ip)
 	state = State.initial(mods)
@@ -256,3 +259,18 @@ def pulse_counts_per_1000_presses_csv(ip: str) -> str:
 
 def p1(ip: str) -> int:
 	return prod(pulse_counts_per_n_presses(ip, 1000).values())
+
+def p2_brute_force(ip: str) -> int:
+	mods = parse(ip)
+	state = State.initial(mods)
+	import sys
+	
+	for i in it.count():
+		if i % 1000 == 0:
+			print(i, end = ' ')
+			sys.stdout.flush()
+		for src, pulse, dst in pulses(mods, state):
+			if pulse == pulse.LOW and dst == 'rx':
+				return i
+
+	# a subset of the system might have periodic behaviour

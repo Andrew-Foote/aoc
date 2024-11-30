@@ -104,3 +104,13 @@ def p1(ip: str) -> int:
 
 # we can expand the map into a dictionary mapping each edge
 # to the set of all paths from one edge to another
+
+# ok apparently max flow/min cut solves this
+# so max flow/min cut is an algorithm that applies to networks
+# a network is a digraph together with start/end nodes and a "capacity" (a nonnegative real number) assigned to each edge
+# in this case we just have an ordinary graph but i guess it can be viewed as a network
+# if we just put add 2 edges in opposite directions for each edge in the graph, and assign equal capacity
+# to each edge
+# "flow" is an assignment of a value to each edge, where the assigned value is always LE the edge's capacity,
+# and the amount of flow going into each vertex is also equal to the amount going out (except for the start
+# and edge vertices)

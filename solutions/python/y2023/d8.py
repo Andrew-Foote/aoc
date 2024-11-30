@@ -1,14 +1,12 @@
-from collections import Counter
+from dataclasses import dataclass
 from enum import Enum
-import functools as ft
-import math
-import heapq
 import itertools as it
 import re
-from typing import Iterator, Self
-from solutions.python.lib.utils import prod
+from typing import assert_never, Iterator
+from solutions.python.lib import prop
 
-test_inputs = [('example', '''\
+test_inputs = [
+('example', '''\
 RL
 
 AAA = (BBB, CCC)
@@ -19,6 +17,7 @@ EEE = (EEE, EEE)
 GGG = (GGG, GGG)
 ZZZ = (ZZZ, ZZZ)
 ''', [
+	('first_10_instructs_csv', 'R,L,R,L,R,L,R,L,R,L'),
 	('p1', 2)
 ]), ('example2', '''\
 LLR
@@ -43,150 +42,173 @@ XXX = (XXX, XXX)
 	('p2', 6)
 ])]
 
-START = 'AAA'
-STOP = 'ZZZ'
-
-class Dir(Enum):
+class Instruct(Enum):
 	LEFT = 'L'
 	RIGHT = 'R'
 
-	@property
-	def index(self: Self) -> int:
+	def __str__(self) -> str:
+		return self.value
+
+	def index(self) -> int:
 		match self:
-			case Dir.LEFT:
+			case Instruct.LEFT:
 				return 0
-			case Dir.RIGHT:
+			case Instruct.RIGHT:
 				return 1
+			case _:
+				assert_never(self)
 
-Graph = dict[str, tuple[str, str]]
+InstructSet = list[Instruct]
 
-def parse(ip: str) -> tuple[list[Dir], Graph]:
-	dirs_s, nodes_s = ip.split('\n\n')
-	dirs = list(map(Dir, dirs_s.strip()))
-	node_ses = nodes_s.strip().splitlines()
-	nodes = {}
+def parse_instructs(s: str) -> Iterator[Instruct]:
+	while True:
+		for c in s:
+			yield Instruct(c)
 
-	for node_s in node_ses:
-		m = re.match(r'\s*(\w+)\s*=\s*\(\s*(\w+),\s*(\w+)\s*\)\s*', node_s)
-		if m is None: breakpoint()
-		label, left, right = m.groups()
-		nodes[label] = (left, right)
+@dataclass(frozen=True)
+class Node:
+	label: str
 
-	return dirs, nodes
+START_NODE = Node('AAA')
+END_NODE = Node('ZZZ')
 
-def steps(dirs: list[Dir], graph: Graph, start: str=START) -> Iterator[tuple[str, int]]:
+Network = dict[Node, tuple[Node, Node]]
+
+def parse_network(s: str) -> Network:
+	lines = s.splitlines()
+	result: Network = {}
+
+	for line in lines:
+		m = re.match(r'\s*(\w+)\s*=\s*\(\s*(\w+),\s*(\w+)\s*\)\s*', line)
+
+		if m is None:
+			raise ValueError(f'unparseable line in network: {line}')
+
+		node, left, right = m.groups()
+		result[Node(node)] = (Node(left), Node(right))
+
+	return result
+
+def parse(ip: str) -> tuple[InstructSet, Network]:
+	instructs, network = ip.split('\n\n')
+	return parse_instructs(instructs), parse_network(network)
+
+def first_10_instructs_csv(ip: str) -> str:
+	instructs, network = ip.split('\n\n')
+	return ','.join(map(str, it.islice(parse_instructs(instructs), 10)))
+
+def follow_instructs(
+	instructs: Iterator[Instruct], network: Network,
+	start: Node=START_NODE
+) -> Iterator[Node]:
+
 	cur = start
 
-	while True:
-		for i, direction in enumerate(dirs):
-			yield cur, i
-			cur = graph[cur][direction.index]
+	for instruct in instructs:
+		elems = network[cur]
+	
+		if cur == END_NODE:
+			return
+		else:
+			yield cur
+
+		cur = elems[instruct.index()]
 
 def p1(ip: str) -> int:
-	dirs, nodes = parse(ip)
+	instructs, network = parse(ip)
+	return sum(1 for _ in follow_instructs(instructs, network))	
 
-	for i, (node, dirindex) in enumerate(steps(dirs, nodes)):
-		if node == STOP:
-			return i
+def path(
+	instructs: InstructSet, network: Network, start: Node
+) -> tuple[list[Node], Node]:
 
-def p2_naive(ip: str) -> int:
-	dirs, nodes = parse(ip)
-	starts = [node for node in nodes.keys() if node.endswith('A')]
-	stops = {node for node in nodes.keys() if node.endswith('Z')}
-	iterators = [steps(dirs, nodes, start) for start in starts]
+	# The next node is determined by the current node and the current
+	# instruction.
+	#
+	# So we can think of it is a path consisting of (node, instruction) pairs.
+	# 
+	# Once we reach a (node, instruction) pair that's already been seen, the
+	# sequence will repeat in a cycle.
 
-	for i in it.count():
-		curs = [next(iterator)[0] for iterator in iterators]
-		#print(curs)
+	path: list[Node] = []
+	seen: set[tuple[Instruct, Node]] = set()
 
-		if all(cur in stops for cur in curs):
-			return i
+	nodes = follow_instructs(instructs, network, start)
 
-def cycle_info(dirs: list[Dir], graph: Graph, start: str, stops: set[str]) -> tuple[int, int, list[int]]:
-	#print('computing stop_places for start ', start)
-
-	visited = {}
-	initial_stop_places = []
-
-	for i, (node, dirindex) in enumerate(steps(dirs, graph, start)):
-		#print(node, dirindex, end = ' . ')
-
-		if (node, dirindex) in visited:
-			repeat_start = visited[node, dirindex]
-			#print('revisisted ', node, dirindex, 'at', i, 'steps, was first visited at', repeat_start)
-			repeat_end = i
-			break
+	for instruct, node in zip(instructs, nodes):
+		if (instruct, node) in seen:
+			return path, node
 		else:
-			visited[node, dirindex] = i
+			path.append(node)
 
-			if node in stops:
-				print('found stop place: ', i, node, dirindex)
-				initial_stop_places.append(i)
-		
-	for i, p in enumerate(initial_stop_places):
-		if p >= repeat_start:
-			stop_places_within_repeat = initial_stop_places[i:]
-			break
-	else:
-		stop_places_within_repeat = []
-
-	print('cycle info:', start, repeat_start, repeat_end, stop_places_within_repeat)
-	return repeat_start, repeat_end, initial_stop_places, stop_places_within_repeat
-
-def stop_places(dirs: list[Dir], graph: Graph, start: str, stops: set[str]) -> Iterator[int]:
-	repeat_start, repeat_end, initial_stop_places, stop_places_within_repeat = cycle_info(dirs, graph, start, stops)
-	yield from initial_stop_places
-
-	if not stop_places_within_repeat:
-		return
-
-	for q in it.count(1):
-		for p in stop_places_within_repeat:
-			yield p + q * (repeat_end - repeat_start)
-
-# this would be the "real" solution for all inputs
-# however it's too inefficient
-def p2_try2(ip: str) -> int:
-	dirs, nodes = parse(ip)
-	starts = [node for node in nodes.keys() if node.endswith('A')]
-	stops = {node for node in nodes.keys() if node.endswith('Z')}
-	stop_place_iterators = [stop_places(dirs, nodes, start, stops) for start in starts]
-
-	for i, iterator in enumerate(stop_place_iterators):
-		print(starts[i], list(it.islice(iterator, 100)))
-
-	stop_place_iterators = [stop_places(dirs, nodes, start, stops) for start in starts]
-
-	counts = Counter()
-
-	while True:
-		# print(counts)
-		# input()
-
-		curs = [next(iterator) for iterator in stop_place_iterators]
-
-		for cur in curs:
-			counts[cur] += 1
-
-			if counts[cur] == len(starts):
-				return cur
-
-# turns out, for the input, there is always exactly one stop place within the repeat,
-# and its index is equal to the repeat_end minus the repeat_start
-# meaning the stop places just occur at multiples of (repeat_end - repeat_start)
-# meaning to find the stop place for all starts, we can just take the LCM
+@dataclass(frozen=True)
+class Cong:
+	rhs: int
+	modulus: int
 
 def p2(ip: str) -> int:
-	dirs, nodes = parse(ip)
-	starts = [node for node in nodes.keys() if node.endswith('A')]
-	stops = {node for node in nodes.keys() if node.endswith('Z')}
-	cycle_infos = [cycle_info(dirs, nodes, start, stops) for start in starts]
-	ms = []
+	instructs, network = parse(ip)
+	starts = [node for node in network.keys() if node.endswith('A')]
+	ends = [node for node in network.keys() if node.endswith('Z')]
+	paths = [path(instructs, network, start) for start in starts]
 
-	for ci in cycle_infos:
-		repeat_start, repeat_end, initial_stop_places, stop_places_within_repeat = ci
-		m = repeat_end - repeat_start
-		ms.append(m)
+	# For each start node, we can determine a path through the
+	# (node, instruction) pairs that ends in a cycle.
+	# 
+	# We want to find the number of steps we have to take before
+	# all paths are at an end node.
+	#
+	# Each path can be divided into a pre-cycle and a cycle.
+	#
+	# First, we should take the max length of any pre-cycle, and
+	# iterate up to that number, manually checking for stopping
+	# points, just in case a stopping point occurs within one of
+	# the pre-cycles for some node.
+	#
+	# After that we're looking for a stopping point within a cycle.
+	# Given a cycle, we can find the set of indexes in that cycle
+	# where it's at a node ending in 'Z'.
+	#
+	# Let S be that set, let m be the length of the pre-cycle, let
+	# n be the length of the cycle. The overall index i places the
+	# path for this start node at a stopping point iff
+	#
+	#   (i - m) % n in S
+	#
+	# i.e.
+	# 
+	#   i - m = a1 (mod n)  or i - m = a2 (mod n)
+	#
+	# i.e.
+	#  
+	#   i = a1 + m (mod n)  or  i = a2 + m (mod n)
+	#
+	# So we have a conjunction of disjunctions of monic linear congruences.
+	# We can distribute the conjunctions through to get a bunch of systems
+	# of linear congruences which we can solve.
+	# i.e.
+	#
+	#   i == m
 
-	return math.lcm(*ms)
-	# frst attempt: 84314908087948949100671
+	index = Var()
+	formula = TrueProp()
+
+	for path in paths:
+		modulus = path.cycle_len
+		djclause = FalseProp()
+
+		for stop_index in path.stop_indices_within_cycle:
+			djclause |= Lit(Cong(index, modulus + stop_index))
+
+		formula &= djclause
+
+	cjclauses = formula.dnf()
+
+	for cjclause in cjclauses:
+		sol = solve_lincongs(cjclause)
+
+		if sol is not None:
+			return sol
+
+def solve_lincongs(eqns: list[Cong]) -> int:
+	for rhs, modulus in eqns:

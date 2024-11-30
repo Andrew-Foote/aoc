@@ -1,4 +1,9 @@
-# The path to your Firefox profile, which is used to locate the Advent of Code session cookie.
+# The path to your Firefox profile, which is used to locate the Advent of Code
+# session cookie.
+#
+# You can find this by going to the special URL "about:profiles" in Firefox.
+# This will show you a list of profiles. Look at the one which is described as
+# the profile in use and copy the "Root Directory" from this profile.
 
 firefox_profile_path = "C:/Users/MyUser/AppData/Roaming/Mozilla/Firefox/Profiles/blah"
 

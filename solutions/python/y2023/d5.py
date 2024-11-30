@@ -160,7 +160,7 @@ def p2(ip: str) -> int:
 	seeds = list(reinterpret_for_p2(seeds))
 
 	for i in it.count():
-		print(i)
+		#print(i)
 
 		for seed in seeds_for_location(maps, i):
 			for seed_range in seeds:

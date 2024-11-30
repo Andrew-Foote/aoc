@@ -324,14 +324,20 @@ class Path:
                 yield p
 
 T = TypeVar('T')
+U = TypeVar('U')
 
 @dataclass
 class Grid(Generic[T]):
     rows: list[list[T]]
     origin: gint
 
-    def __init__(self: Self, rows: Iterable[Iterable[T]], origin: gint=gint()) -> None:
-        self.rows = [list(row) for row in rows]
+    def __init__(
+        self: Self,
+        rows: Iterable[Iterable[T]],
+        origin: gint=gint(),
+        conv: Callable[[T], U]=lambda x: x
+    ) -> None:
+        self.rows = [list(map(conv, row)) for row in rows]
 
         if not self.rows:
             raise ValueError('grid is empty')
