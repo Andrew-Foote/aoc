@@ -13,6 +13,31 @@ class Lit[T]:
 	def __or__(self, other: 'Prop[T]') -> 'Prop[T]':
 		return Or(self, other)
 
+	def __str__(self) -> str:
+		return str(self.val)
+
+@dataclass(frozen=True)
+class TrueProp[T]:
+	def __and__(self, other: 'Prop[T]') -> 'Prop[T]':
+		return And(self, other)
+
+	def __or__(self, other: 'Prop[T]') -> 'Prop[T]':
+		return Or(self, other)	
+
+	def __str__(self) -> str:
+		return '⊤'
+
+@dataclass(frozen=True)
+class FalseProp[T]:
+	def __and__(self, other: 'Prop[T]') -> 'Prop[T]':
+		return And(self, other)
+
+	def __or__(self, other: 'Prop[T]') -> 'Prop[T]':
+		return Or(self, other)
+
+	def __str__(self) -> str:
+		return '⊥'
+
 @dataclass(frozen=True)
 class And[T]:
 	lhs: 'Prop[T]'
@@ -23,6 +48,9 @@ class And[T]:
 
 	def __or__(self, other: 'Prop[T]') -> 'Prop[T]':
 		return Or(self, other)
+
+	def __str__(self) -> str:
+		return f'({self.lhs} & {self.rhs})'
 
 @dataclass(frozen=True)
 class Or[T]:
@@ -35,12 +63,19 @@ class Or[T]:
 	def __or__(self, other: 'Prop[T]') -> 'Prop[T]':
 		return Or(self, other)
 
-type Prop[T] = Lit[T] | And[T] | Or[T]
+	def __str__(self) -> str:
+		return f'({self.lhs} | {self.rhs})'
+
+type Prop[T] = Lit[T] | TrueProp[T] | FalseProp[T] | And[T] | Or[T]
 
 def dnf(prop: Prop) -> list[list[Lit]]:
 	match prop:
 		case Lit():
 			return [[prop]]
+		case TrueProp():
+			return [[]]
+		case FalseProp():
+			return []
 		case And(lhs, rhs):
 			ldnf = dnf(lhs)
 			rdnf = dnf(rhs)
@@ -61,14 +96,3 @@ def dnf(prop: Prop) -> list[list[Lit]]:
 
 def alphalits(count: int=26) -> list[Lit[str]]:
 	return [Lit(letter) for letter in string.ascii_lowercase[:count]]
-
-def test_dnf():
-	a, b, c, e, f, g, h, i, j, *_ = alphalits()
-	
-	assert dnf(
-		((a & b) | c)
-		& ((e & f & g) | h | (i & j))
-	) == [
-		[a, b, e, f, g], [a, b, h], [a, b, i, j],
-		[c, e, f, g], [c, h], [c, i, j]
-	]

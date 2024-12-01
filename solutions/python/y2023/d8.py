@@ -3,7 +3,7 @@ from enum import Enum
 import itertools as it
 import re
 from typing import assert_never, Iterator
-from solutions.python.lib import prop
+from solutions.python.lib import numth, prop
 
 test_inputs = [
 ('example', '''\
@@ -18,7 +18,8 @@ GGG = (GGG, GGG)
 ZZZ = (ZZZ, ZZZ)
 ''', [
 	('first_10_instructs_csv', 'R,L,R,L,R,L,R,L,R,L'),
-	('p1', 2)
+	('p1', 2),
+	('paths_csv', 'AAA,[],2,[0,1],2'),
 ]), ('example2', '''\
 LLR
 
@@ -26,7 +27,8 @@ AAA = (BBB, BBB)
 BBB = (AAA, ZZZ)
 ZZZ = (ZZZ, ZZZ)
 ''', [
-	('p1', 6)
+	('p1', 6),
+	('paths_csv', 'AAA,[],6,[0,1,2],3'),
 ]), ('example3', '''\
 LR
 
@@ -39,7 +41,8 @@ LR
 22Z = (22B, 22B)
 XXX = (XXX, XXX)
 ''', [
-	('p2', 6)
+	('paths_csv', '11A,[],1,[1],2;22A,[],1,[2,5],6'),
+	('p2', 6),
 ])]
 
 class Instruct(Enum):
@@ -58,16 +61,33 @@ class Instruct(Enum):
 			case _:
 				assert_never(self)
 
-InstructSet = list[Instruct]
+@dataclass(frozen=True)
+class InstructSet:
+	instructs: list[Instruct]
 
-def parse_instructs(s: str) -> Iterator[Instruct]:
-	while True:
-		for c in s:
-			yield Instruct(c)
+	def __iter__(self) -> Iterator[Instruct]:
+		while True:
+			for instruct in self.instructs:
+				yield instruct#
+
+	def __len__(self) -> int:
+		return len(self.instructs)
+
+	def __getitem__(self, index: int) -> Instruct:
+		return self.instructs[index % len(self)]
+
+def parse_instructs(s: str) -> InstructSet:
+	return InstructSet(list(map(Instruct, s)))
 
 @dataclass(frozen=True)
 class Node:
 	label: str
+
+	def is_start(self) -> bool:
+		return self.label.endswith('A')
+
+	def is_end(self) -> bool:
+		return self.label.endswith('Z')
 
 START_NODE = Node('AAA')
 END_NODE = Node('ZZZ')
@@ -98,117 +118,151 @@ def first_10_instructs_csv(ip: str) -> str:
 	return ','.join(map(str, it.islice(parse_instructs(instructs), 10)))
 
 def follow_instructs(
-	instructs: Iterator[Instruct], network: Network,
-	start: Node=START_NODE
+	instructs: InstructSet, network: Network, start: Node=START_NODE
 ) -> Iterator[Node]:
 
 	cur = start
 
 	for instruct in instructs:
 		elems = network[cur]
-	
-		if cur == END_NODE:
-			return
-		else:
-			yield cur
-
+		yield cur
 		cur = elems[instruct.index()]
 
 def p1(ip: str) -> int:
 	instructs, network = parse(ip)
-	return sum(1 for _ in follow_instructs(instructs, network))	
+	
+	return sum(1 for _ in it.takewhile(
+		lambda node: node != END_NODE,
+		follow_instructs(instructs, network)
+	))
+	
+@dataclass
+class Path:
+	pre_cycle_stops: set[int]
+	pre_cycle_len: int
+	cycle_stops: set[int]
+	cycle_len: int
 
-def path(
+def get_path(
 	instructs: InstructSet, network: Network, start: Node
-) -> tuple[list[Node], Node]:
+) -> Path:
 
-	# The next node is determined by the current node and the current
-	# instruction.
-	#
-	# So we can think of it is a path consisting of (node, instruction) pairs.
-	# 
-	# Once we reach a (node, instruction) pair that's already been seen, the
-	# sequence will repeat in a cycle.
+	# The path of the camel can be determined if you know both the node it's
+	# currently on, and the index (within the instruction set) of the
+	# instruction it's going to follow. We need the index, not just the
+	# instruction itself, because the same instruction may appear multiple
+	# times within the instruction set with different subsequent instructions.
+	# Thus we can represent the camel's "state" as an (instruct_index, node)
+	# tuple. Since there are only finitely many such tuples, the path will
+	# inevitably end in a cycle.
 
-	path: list[Node] = []
-	seen: set[tuple[Instruct, Node]] = set()
+	seen: dict[tuple[int, Node], int] = {}
+
+	stops: set[int] = set()
 
 	nodes = follow_instructs(instructs, network, start)
+	instruct_count = len(instructs)
 
-	for instruct, node in zip(instructs, nodes):
-		if (instruct, node) in seen:
-			return path, node
+	for i, node in enumerate(nodes):
+		if node.is_end():
+			stops.add(i)
+
+		instruct_index = i % instruct_count
+
+		if (instruct_index, node) in seen:
+			pre_cycle_len = seen[instruct_index, node]
+
+			pre_cycle_stops = set()
+			cycle_stops = set()
+
+			for stop in stops:
+				if stop < pre_cycle_len:
+					pre_cycle_stops.add(stop)
+				elif stop < i:
+					cycle_stops.add(stop - pre_cycle_len)
+
+			cycle_len = i - pre_cycle_len
+			return Path(pre_cycle_stops, pre_cycle_len, cycle_stops, cycle_len)
 		else:
-			path.append(node)
+			seen[instruct_index, node] = i
 
-@dataclass(frozen=True)
-class Cong:
-	rhs: int
-	modulus: int
+	assert False
+
+def paths_csv(ip: str) -> str:
+	instructs, network = parse(ip)
+	starts = [node for node in network.keys() if node.is_start()]
+	paths = {start: get_path(instructs, network, start) for start in starts}
+	res = []
+
+	for start, path in paths.items():
+		res.append(','.join([
+			start.label,
+			'[{}]'.format(','.join(map(str, sorted(path.pre_cycle_stops)))),
+			str(path.pre_cycle_len),
+			'[{}]'.format(','.join(map(str, sorted(path.cycle_stops)))),
+			str(path.cycle_len),
+		]))
+
+	return ';'.join(res)
 
 def p2(ip: str) -> int:
 	instructs, network = parse(ip)
-	starts = [node for node in network.keys() if node.endswith('A')]
-	ends = [node for node in network.keys() if node.endswith('Z')]
-	paths = [path(instructs, network, start) for start in starts]
+	starts = [node for node in network.keys() if node.is_start()]
+	paths = [get_path(instructs, network, start) for start in starts]
 
 	# For each start node, we can determine a path through the
-	# (node, instruction) pairs that ends in a cycle.
+	# (instruct_index, node) pairs that ends in a cycle.
 	# 
-	# We want to find the number of steps we have to take before
-	# all paths are at an end node.
+	# We want to find the number of steps we have to take before all paths are
+	# at an end node.
 	#
 	# Each path can be divided into a pre-cycle and a cycle.
 	#
-	# First, we should take the max length of any pre-cycle, and
-	# iterate up to that number, manually checking for stopping
-	# points, just in case a stopping point occurs within one of
-	# the pre-cycles for some node.
-	#
-	# After that we're looking for a stopping point within a cycle.
-	# Given a cycle, we can find the set of indexes in that cycle
-	# where it's at a node ending in 'Z'.
-	#
-	# Let S be that set, let m be the length of the pre-cycle, let
-	# n be the length of the cycle. The overall index i places the
-	# path for this start node at a stopping point iff
-	#
-	#   (i - m) % n in S
-	#
-	# i.e.
-	# 
-	#   i - m = a1 (mod n)  or i - m = a2 (mod n)
-	#
-	# i.e.
-	#  
-	#   i = a1 + m (mod n)  or  i = a2 + m (mod n)
-	#
-	# So we have a conjunction of disjunctions of monic linear congruences.
-	# We can distribute the conjunctions through to get a bunch of systems
-	# of linear congruences which we can solve.
-	# i.e.
-	#
-	#   i == m
+	# First, we should take the max length of any pre-cycle, and iterate up to
+	# that number, manually checking for stopping points, just in case a
+	# stopping point occurs within one of the pre-cycles for some node.
 
-	index = Var()
-	formula = TrueProp()
+	max_pre_cycle_len = max(path.pre_cycle_len for path in paths)
+	iterators = [follow_instructs(instructs, network, start) for start in starts]
+
+	for i, *nodes in zip(range(max_pre_cycle_len), *iterators):
+		if all(node.is_end() for node in nodes):
+			return i
+
+	# After that we're looking for a stopping point within a cycle. Given a
+	# cycle, we can find the set of indexes within that cycle (relative to its
+	# start point) that are at a stopping point.
+	#
+	# Let S be that set, let m be the length of the pre-cycle, let n be the
+	# length of the cycle, and let i be the current index we're at in the path.
+	# We're at a stopping point iff
+	#
+	#   i - m) % n in S  i.e.  i == a % n (for each a in S)
+	#
+	# So we have a conjunction of disjunctions of monic linear congruences. We
+	# can distribute the conjunctions through to get a bunch of systems of
+	# linear congruences, which we can solve.
+
+	formula: prop.Prop[numth.Cong] = prop.TrueProp()
 
 	for path in paths:
+		offset = path.pre_cycle_len
 		modulus = path.cycle_len
-		djclause = FalseProp()
+		djclause: prop.Prop[numth.Cong] = prop.FalseProp()
 
-		for stop_index in path.stop_indices_within_cycle:
-			djclause |= Lit(Cong(index, modulus + stop_index))
+		for stop_index in path.cycle_stops:
+			djclause |= prop.Lit(numth.Cong(offset + stop_index, modulus))
 
 		formula &= djclause
 
-	cjclauses = formula.dnf()
+	cjclauses = prop.dnf(formula)
+	sols: list[int] = []
 
 	for cjclause in cjclauses:
-		sol = solve_lincongs(cjclause)
+		congs = [lit.val for lit in cjclause]
+		sol = numth.solve_congs(congs)
 
 		if sol is not None:
-			return sol
+			sols.append(sol.minsol(lb=max_pre_cycle_len))
 
-def solve_lincongs(eqns: list[Cong]) -> int:
-	for rhs, modulus in eqns:
+	return min(sols)

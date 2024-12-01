@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import sqlite3
 import sys
+import tempfile
 import tomllib
 from typing import Iterator, Optional
 import urllib.parse
@@ -56,29 +57,40 @@ class AOC:
     @ft.cached_property
     def session_cookie(self) -> str:
         firefox_cookie_db_path = self.firefox_profile_path / 'cookies.sqlite'
+        print(firefox_cookie_db_path)
 
         if not firefox_cookie_db_path.exists():
             raise ConfigError(
                 f'Unable to find the Firefox cookie database at {firefox_cookie_db_path}.'
             )
 
-        firefox_cookie_db = sqlite3.connect(firefox_cookie_db_path)
+        # Since Firefox may lock the cookie database, we copy it to a temporary
+        # file before opening.
 
-        session_cookie_row = firefox_cookie_db.execute(
-            '''
-                select "value" from "moz_cookies" as "current"
-                where "name" = ? and "host" = ? and "path" = ? and "originAttributes" = ?
-            ''',
-            ('session', '.adventofcode.com', '/', self.firefox_container_origin_attributes)
-        ).fetchone()
+        with tempfile.TemporaryDirectory() as tempdir:
+            db_copy_path = Path(tempdir) / 'cookies.sqlite'
 
-        if session_cookie_row is None:
-            raise ConfigError(
-                f'The Firefox profile directory "{firefox_cookie_db_path}" does not contain an Advent of '
-                'Code session cookie. You will need to log into the website to create a new one.'
-            )
+            with firefox_cookie_db_path.open('rb') as db_file:
+                with db_copy_path.open('wb') as db_copy_file:
+                    db_copy_file.write(db_file.read())
 
-        return session_cookie_row[0]
+            firefox_cookie_db = sqlite3.connect(db_copy_path)
+
+            session_cookie_row = firefox_cookie_db.execute(
+                '''
+                    select "value" from "moz_cookies" as "current"
+                    where "name" = ? and "host" = ? and "path" = ? and "originAttributes" = ?
+                ''',
+                ('session', '.adventofcode.com', '/', self.firefox_container_origin_attributes)
+            ).fetchone()
+
+            if session_cookie_row is None:
+                raise ConfigError(
+                    f'The Firefox profile directory "{firefox_cookie_db_path}" does not contain an Advent of '
+                    'Code session cookie. You will need to log into the website to create a new one.'
+                )
+
+            return session_cookie_row[0]
 
     @ft.cached_property
     def db(self):

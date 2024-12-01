@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aoc"
+version = "0.0.1"
+authors = [
+    { name="Andrew Foote", email="footeandrew1@gmail.com" },
+]
+description = "Advent of Code stuff"
+requires-python = ">=3.13"
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "apsw",
+    "line-profiler",
+    "mpmath",
+    "mypy",
+    "numpy",
+    "PySDL2",
+    "scipy",
+    "sympy",
+]
+
+[project.urls]
+Homepage = "https://github.com/Andrew-Foote/aoc"
+Issues = "https://github.com/Andrew-Foote/aoc/issues"
+
+[project.optional-dependencies]
+dev = [
+    "mypy",
+    "pytest",
+]
+
+[tool.mypy]
+packages = ["solutions"]
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "."
+]
