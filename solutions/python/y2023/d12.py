@@ -138,50 +138,6 @@ def arrangement_count(row: UnknownRow, sizes: tuple[int, ...]) -> int:
 
     return sum(states[state] for state in end_states)
 
-
-    # keys of this dictionary are all the states the NFA is currently in
-    sdict: dict[int, int] = {0: 1}
-    counter: Counter[int] = Counter()
-
-    for state in row.items:
-        print(state, sdict)
-
-        for s in sdict:
-            if state == SpringState.UNKNOWN:
-                if s + 1 < len(nfa):
-                    counter[s + 1] += sdict[s]
-
-                if nfa[s] == '.':
-                    counter[s] += sdict[s]
-
-            elif state == SpringState.OPERATIONAL:
-                if s + 1 < len(nfa) and nfa[s + 1] == '.':
-                    counter[s + 1] += sdict[s]
-
-                if nfa[s] == '.':
-                    counter[s] += sdict[s]
-
-            elif state == SpringState.DAMAGED:
-                if s + 1 < len(nfa) and nfa[s + 1] == '#':
-                    counter[s + 1] += sdict[s]
-
-        sdict = dict(counter)
-        counter = Counter()
-
-    endstates = len(nfa) - 1, len(nfa) - 2
-    return sdict[len(nfa) - 1] + sdict[len(nfa) - 2]
-
-
-def p2(ip: str) -> int:
-    res = 0
-
-    for row, sizes in parse(ip):
-        row = unfold_row(row)
-        sizes = unfold_sizes(sizes)
-        res += fuck(row, sizes)
-
-    return res
-
 def arrangement_counts(ip: str) -> Iterator[int]:
     for row, sizes in parse(ip):
         yield arrangement_count(row, sizes)
