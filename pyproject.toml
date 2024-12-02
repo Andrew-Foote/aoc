@@ -32,10 +32,12 @@ Issues = "https://github.com/Andrew-Foote/aoc/issues"
 dev = [
     "mypy",
     "pytest",
+    "scipy-stubs",
 ]
 
 [tool.mypy]
 packages = ["solutions"]
+mypy_path = ["stubs"]
 
 [tool.pytest.ini_options]
 pythonpath = [

@@ -199,7 +199,7 @@ class Rect:
             raise ValueError(f'left ({self.left}) exceeds right ({self.right})')
 
     @classmethod
-    def from_tlwh(self: Self, top: int, left: int, width: int, height: int):
+    def from_tlwh(self: type[Self], top: int, left: int, width: int, height: int):
         return Rect(top=top, left=left, bottom=top + height - 1, right=left + width - 1)
 
     @property

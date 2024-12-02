@@ -39,7 +39,7 @@ def is_visible(grid: Grid[int], z0: gint) -> bool:
 def parse_grid(ip: str) -> Grid[int]:
 	return Grid([list(map(int, s)) for s in ip.splitlines()])
 
-def interior_points_visible_csv(ip: str) -> bool:
+def interior_points_visible_csv(ip: str) -> str:
 	grid = parse_grid(ip)
 	rect = grid.rect()
 	interior = Rect(rect.top + 1, rect.right - 1, rect.bottom - 1, rect.left + 1)

@@ -47,11 +47,11 @@ humidity-to-location map:
 	('p2','46')
 ])]
 
-humidity to location:
-(56, 93) -> (60, 97)
-(93, 97) -> (56, 60)
+# humidity to location:
+# (56, 93) -> (60, 97)
+# (93, 97) -> (56, 60)
 
-so 
+# so 
 
 # how do we get to the lowest location?
 # well the lowest location would be 0
@@ -73,6 +73,7 @@ class MapLine:
 
 	# apply to a range?
 	def apply_to_range(self, r: range) -> None:
+		pass
 
 
 	@property

@@ -103,7 +103,7 @@ def p1(ip: str) -> int:
 			return grid
 		return move_blizzards(grid_at_step(steps - 1))
 
-	def children(node: tuple[int, gint, list[gint]]) -> Iterator[tuple[int, gint]]:
+	def children(node: tuple[int, gint, tuple[gint, ...]]) -> Iterator[tuple[int, gint, tuple[gint, ...]]]:
 		steps, pos, path = node
 		moves = list(available_moves(pos, grid_at_step(steps + 1)))
 

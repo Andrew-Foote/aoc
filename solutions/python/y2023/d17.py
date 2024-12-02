@@ -56,7 +56,7 @@ class Dir(Enum):
 		return DIR_AS_ASCII_ARROW[self]
 
 	@classmethod
-	def from_gint(self: Self, z: gint) -> Self:
+	def from_gint(self, z: gint) -> Self:
 		return NESW_R[z]
 
 DIR_AS_ASCII_ARROW = {Dir.NORTH: '^', Dir.EAST: '>', Dir.SOUTH: 'v', Dir.WEST: '<'}

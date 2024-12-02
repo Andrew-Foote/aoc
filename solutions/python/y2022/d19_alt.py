@@ -47,7 +47,7 @@ def parse(ip: str) -> dict[int, Blueprint]:
         blueprint_s = blueprint_s[m.end():]
 
         lines = [line.strip() for line in blueprint_s.split('.') if line.strip()]
-        blueprint = defaultdict(lambda: Counter())
+        blueprint: defaultdict[Resource, Counter[Resource]] = defaultdict(lambda: Counter())
 
         for line in lines:
             m = re.match(r'Each (\w+) robot costs (\d+) (\w+)(?: and (\d+) (\w+))?', line)
@@ -62,11 +62,20 @@ def parse(ip: str) -> dict[int, Blueprint]:
     return blueprints
 
 def max_geodes(minutes: int, blueprint: Blueprint) -> int:
-    builds, robots, generated, stash = ([] for _ in range(4)) # per-minute per-resource variables
-    constraints = []
+     # per-minute per-resource variables
+    builds: list[dict[Resource, linopt.LinPoly]] = []
+    robots: list[dict[Resource, linopt.LinPoly]] = []
+    generated: list[dict[Resource, linopt.LinPoly]] = []
+    stash: list[dict[Resource, linopt.LinPoly]] = []
+
+    constraints: list[linopt.Constraint] = []
 
     for minute in range(minutes + 1):
-        builds_now, robots_now, generated_now, stash_now = ({} for _ in range(4))
+        builds_now: dict[Resource, linopt.LinPoly] = {}
+        robots_now: dict[Resource, linopt.LinPoly] = {}
+        generated_now: dict[Resource, linopt.LinPoly] = {}
+        stash_now: dict[Resource, linopt.LinPoly] = {}
+
         builds.append(builds_now)
         robots.append(robots_now)
         generated.append(generated_now)
@@ -101,7 +110,7 @@ def max_geodes(minutes: int, blueprint: Blueprint) -> int:
     constraints.extend(linopt.le(builds[minute][resource], 1) for minute in range(minutes) for resource in Resource)
     constraints.extend(linopt.ge(builds[minutes][resource], 0) for resource in Resource)
     constraints.extend(linopt.le(builds[minutes][resource], 0) for resource in Resource)
-    objective = -stash[minutes][resource.GEODE]
+    objective = -stash[minutes][Resource.GEODE]
     x, res = linopt.solve(objective, constraints)
     #breakpoint()
     return -round(res)

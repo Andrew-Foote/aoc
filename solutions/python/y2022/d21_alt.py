@@ -120,7 +120,7 @@ class Difference(Expr):
             return 
 
 
-        return cancelled.
+        return cancelled
 
 @dataclass
 class Product(Expr):
@@ -176,7 +176,7 @@ class Equation:
 
             match self.lhs:
                 case Var(name):
-                    assert name == x.name:
+                    assert name == x.name
                     return self.rhs
                 case Sum(terms):
                     tx = None
@@ -199,7 +199,8 @@ class Equation:
                         else:
                             return Equation(self.minuend, self.rhs + self.subtrahend)
                     elif x in self.subtrahend.vars():
-                        if x in self.
+                        if x in self:
+                            pass
 
 
 

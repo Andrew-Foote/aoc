@@ -29,12 +29,12 @@ U 20\
 
 DIRS = {'URDL'[i]: NESW[i] for i in range(4)}
 
-def parse(ip: str) -> Iterator[tuple[str, int]]:
+def parse(ip: str) -> Iterator[tuple[gint, int]]:
 	for line in ip.splitlines():
 		dir_s, count = line.split(' ')
 		yield DIRS[dir_s], int(count)
 
-def step(n: int, moves: Iterable[tuple[str, int]]) -> Iterator[list[gint]]:
+def step(n: int, moves: Iterable[tuple[gint, int]]) -> Iterator[list[gint]]:
 	knotpos = [gint()] * n
 	yield knotpos
 

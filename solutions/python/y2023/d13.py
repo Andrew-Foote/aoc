@@ -1,8 +1,11 @@
-from collections.abc import Iterator
 from collections import Counter
 from dataclasses import dataclass
 from enum import Enum
-from typing import Literal, Self
+import functools as ft
+import itertools as it
+from typing import assert_never, cast, Iterator, Literal, Self
+
+DEBUG = False
 
 test_inputs = [
     (

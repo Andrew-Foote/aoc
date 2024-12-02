@@ -45,7 +45,7 @@ def parse(ip: str) -> tuple[Grid[str], Path]:
     path = path.strip()
     # print(path)
 
-    pathelems = []
+    pathelems: Path = []
     curnum = ''
 
     for c in path:
@@ -131,7 +131,7 @@ CUBE2CUBE = {
 def get_face_number_for_coords(coords: gint) -> int:
     if 50 <= coords.real < 100 and 0 <= coords.imag < 50:
         return 1
-    elif 100 <= coords.real < 150 and 0 <= coords.image < 50:
+    elif 100 <= coords.real < 150 and 0 <= coords.imag < 50:
         return 2
     elif 50 <= coords.real < 100 and 50 <= coords.imag < 100:
         return 3
@@ -141,6 +141,8 @@ def get_face_number_for_coords(coords: gint) -> int:
         return 5
     elif 0 <= coords.real < 50 and 150 <= coords.imag < 200:
         return 6
+    else:
+        assert False
 
 
 def p2(ip: str) -> int:
@@ -168,21 +170,21 @@ def p2(ip: str) -> int:
     # a corner connection says: this corner of this face connects to this corner of this other face
     # how do we identify corners? by face + ne/sw/nw/se
 
-    empty = nw
-    shaded = ne
-    crown = sw
-    circles = se
+    # empty = nw
+    # shaded = ne
+    # crown = sw
+    # circles = se
 
-    CORNERS = [
-        { (1, DIR_NW), (4, DIR_NE), (6, DIR_NW) },
-        { (1, DIR_NE), (2, DIR_NW), (6, DIR_SW) },
-        { (1, DIR_SW), (4, DIR_NW), (3, DIR_NW) },
-        { (1, DIR_SE), (2, DIR_SW), (3, DIR_NE) },
-        { (5, DIR_NW), (4, DIR_NE), (3, DIR_SW) },
-        { (5, DIR_NE), (3, DIR_SE), (2, DIR_SE) },
-        { (5, DIR_SW), (4, DIR_SE), (6, DIR_NE) },
-        { (5, DIR_SE), (6, DIR_SE), (2, DIR_NE) }
-    ]
+    # CORNERS = [
+    #     { (1, DIR_NW), (4, DIR_NE), (6, DIR_NW) },
+    #     { (1, DIR_NE), (2, DIR_NW), (6, DIR_SW) },
+    #     { (1, DIR_SW), (4, DIR_NW), (3, DIR_NW) },
+    #     { (1, DIR_SE), (2, DIR_SW), (3, DIR_NE) },
+    #     { (5, DIR_NW), (4, DIR_NE), (3, DIR_SW) },
+    #     { (5, DIR_NE), (3, DIR_SE), (2, DIR_SE) },
+    #     { (5, DIR_SW), (4, DIR_SE), (6, DIR_NE) },
+    #     { (5, DIR_SE), (6, DIR_SE), (2, DIR_NE) }
+    # ]
 
     # when we leave the net on one side we need to know
     # (a) which face we are going to

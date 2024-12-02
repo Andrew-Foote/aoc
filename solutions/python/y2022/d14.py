@@ -80,14 +80,10 @@ def grid_pic(rect: Rect, grid: Callable[[gint], Tile]) -> str:
 def parse_grid(ip: str) -> Grid[Tile]:
 	paths = list(parse_paths(ip))
 
-	print(paths)
-	
 	rect = Rect.bounding(it.chain(
 		[SAND_SOURCE_POS],
 		it.chain.from_iterable(path.points for path in paths)
 	))
-
-	print(rect)
 
 	full_paths = [list(path) for path in paths]
 	rock_locs = set(it.chain.from_iterable(full_paths))
@@ -145,6 +141,8 @@ def p1(ip: str) -> int:
 				# input()
 				break
 
+	assert False
+
 def p2_parse_grid(ip: str) -> DefaultGrid[Tile]:
 	paths = list(parse_paths(ip))
 	rocks = set(it.chain.from_iterable(paths))
@@ -193,6 +191,8 @@ def p2(ip: str) -> int:
 				# input()
 				break
 
+	assert False
+
 def run_grid(grid: Grid[Tile]) -> Iterator[Grid[Tile]]:
 	for i in it.count():
 		sand_pos = SAND_SOURCE_POS
@@ -234,7 +234,6 @@ if __name__ == '__main__':
 
 	grid = parse_grid(ip)
 	rect = grid.rect()
-	print(rect.width, rect.height)
 
 	import numpy as np
 	import sdl2
@@ -263,8 +262,6 @@ if __name__ == '__main__':
 			]
 			for x in range(rect.left, rect.right + 1)
 		])
-
-	print(grid_as_array().shape)
 
 	def do_update():
 		np.copyto(view, grid_as_array())

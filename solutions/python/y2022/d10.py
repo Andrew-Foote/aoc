@@ -217,6 +217,6 @@ def screen(ip: str) -> int:
 
 	return rows
 
-def p2(ip: str) -> int:
+def p2(ip: str) -> str:
 	rows = screen(ip)
 	return '\n'.join(''.join(row) for row in rows)

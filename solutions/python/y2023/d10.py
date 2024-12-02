@@ -1,125 +1,126 @@
+from collections.abc import Iterator
 from enum import Enum
 import itertools as it
 from solutions.python.lib.gint import gint
 import solutions.python.lib.grid as grid
 
 test_inputs = [
-#     ('example1', '''\
-# .....
-# .S-7.
-# .|.|.
-# .L-J.
-# .....''', [
-#         ('distance_map', '''\
-# .....
-# .012.
-# .1.3.
-# .234.
-# .....'''),
-#         ('p1', 4)
-#     ]),
-#     ('example2', '''\
-# -L|F7
-# 7S-7|
-# L|7||
-# -L-J|
-# L|-JF''', [
-#         ('main_loop_pic', '''\
-# .....
-# .S-7.
-# .|.|.
-# .L-J.
-# .....''')
-#     ]),
-#     ('example3', '''\
-# 7-F7-
-# .FJ|7
-# SJLL7
-# |F--J
-# LJ.LJ''', [
-#         ('main_loop_pic', '''\
-# ..F7.
-# .FJ|.
-# SJ.L7
-# |F--J
-# LJ...'''),
-#         ('distance_map', '''\
-# ..45.
-# .236.
-# 01.78
-# 14567
-# 23...'''),
-#         ('p1', 8)
-#     ]),
-#     ('example4', '''\
-# ...........
-# .S-------7.
-# .|F-----7|.
-# .||.....||.
-# .||.....||.
-# .|L-7.F-J|.
-# .|..|.|..|.
-# .L--J.L--J.
-# ...........''', [
-#         ('p2', 4),
-#         ('enclosed_map', '''\
-# ...........
-# .S-------7.
-# .|F-----7|.
-# .||.....||.
-# .||.....||.
-# .|L-7.F-J|.
-# .|II|.|II|.
-# .L--J.L--J.
-# ...........''')
-#     ]),
-#     ('example5', '''\
-# ..........
-# .S------7.
-# .|F----7|.
-# .||....||.
-# .||....||.
-# .|L-7F-J|.
-# .|..||..|.
-# .L--JL--J.
-# ..........''', [
-#         ('p2', 4),
-#         ('enclosed_map', '''\
-# ..........
-# .S------7.
-# .|F----7|.
-# .||....||.
-# .||....||.
-# .|L-7F-J|.
-# .|II||II|.
-# .L--JL--J.
-# ..........''')
-#     ]),
-#     ('example6', '''\
-# .F----7F7F7F7F-7....
-# .|F--7||||||||FJ....
-# .||.FJ||||||||L7....
-# FJL7L7LJLJ||LJ.L-7..
-# L--J.L7...LJS7F-7L7.
-# ....F-J..F7FJ|L7L7L7
-# ....L7.F7||L7|.L7L7|
-# .....|FJLJ|FJ|F7|.LJ
-# ....FJL-7.||.||||...
-# ....L---J.LJ.LJLJ...''', [
-#         ('enclosed_map', '''\
-# .F----7F7F7F7F-7....
-# .|F--7||||||||FJ....
-# .||.FJ||||||||L7....
-# FJL7L7LJLJ||LJIL-7..
-# L--J.L7IIILJS7F-7L7.
-# ....F-JIIF7FJ|L7L7L7
-# ....L7IF7||L7|IL7L7|
-# .....|FJLJ|FJ|F7|.LJ
-# ....FJL-7.||.||||...
-# ....L---J.LJ.LJLJ...
-# '''),
-#         ('p2', 8)
-#     ])
+    ('example1', '''\
+.....
+.S-7.
+.|.|.
+.L-J.
+.....''', [
+        ('distance_map', '''\
+.....
+.012.
+.1.3.
+.234.
+.....'''),
+        ('p1', 4)
+    ]),
+    ('example2', '''\
+-L|F7
+7S-7|
+L|7||
+-L-J|
+L|-JF''', [
+        ('main_loop_pic', '''\
+.....
+.S-7.
+.|.|.
+.L-J.
+.....''')
+    ]),
+    ('example3', '''\
+7-F7-
+.FJ|7
+SJLL7
+|F--J
+LJ.LJ''', [
+        ('main_loop_pic', '''\
+..F7.
+.FJ|.
+SJ.L7
+|F--J
+LJ...'''),
+        ('distance_map', '''\
+..45.
+.236.
+01.78
+14567
+23...'''),
+        ('p1', 8)
+    ]),
+    ('example4', '''\
+...........
+.S-------7.
+.|F-----7|.
+.||.....||.
+.||.....||.
+.|L-7.F-J|.
+.|..|.|..|.
+.L--J.L--J.
+...........''', [
+        ('p2', 4),
+        ('enclosed_map', '''\
+...........
+.S-------7.
+.|F-----7|.
+.||.....||.
+.||.....||.
+.|L-7.F-J|.
+.|II|.|II|.
+.L--J.L--J.
+...........''')
+    ]),
+    ('example5', '''\
+..........
+.S------7.
+.|F----7|.
+.||....||.
+.||....||.
+.|L-7F-J|.
+.|..||..|.
+.L--JL--J.
+..........''', [
+        ('p2', 4),
+        ('enclosed_map', '''\
+..........
+.S------7.
+.|F----7|.
+.||....||.
+.||....||.
+.|L-7F-J|.
+.|II||II|.
+.L--JL--J.
+..........''')
+    ]),
+    ('example6', '''\
+.F----7F7F7F7F-7....
+.|F--7||||||||FJ....
+.||.FJ||||||||L7....
+FJL7L7LJLJ||LJ.L-7..
+L--J.L7...LJS7F-7L7.
+....F-J..F7FJ|L7L7L7
+....L7.F7||L7|.L7L7|
+.....|FJLJ|FJ|F7|.LJ
+....FJL-7.||.||||...
+....L---J.LJ.LJLJ...''', [
+        ('enclosed_map', '''\
+.F----7F7F7F7F-7....
+.|F--7||||||||FJ....
+.||.FJ||||||||L7....
+FJL7L7LJLJ||LJIL-7..
+L--J.L7IIILJS7F-7L7.
+....F-JIIF7FJ|L7L7L7
+....L7IF7||L7|IL7L7|
+.....|FJLJ|FJ|F7|.LJ
+....FJL-7.||.||||...
+....L---J.LJ.LJLJ...
+'''),
+        ('p2', 8)
+    ])
 ]
 
 PIPES = {
@@ -170,6 +171,8 @@ def get_s_location(thegrid: grid.Grid[str]) -> gint:
     for z in thegrid.rect():
         if thegrid[z] == 'S':
             return z
+
+    assert False
 
 def main_loop(thegrid: grid.Grid[str]) -> tuple[
     gint,
@@ -246,7 +249,7 @@ def p1(ip: str) -> int:
     assert steps1[-1][2] == steps2[-1][2]
     return steps1[-1][2]
 
-def get_outside_loop_set(ip: str) -> set[gint]:
+def get_outside_loop_set(ip: str) -> tuple[set[gint], set[gint]]:
     thegrid = parse(ip)
     s_loc, steps1, steps2, sdirs = main_loop(thegrid)
 
@@ -264,10 +267,10 @@ def get_outside_loop_set(ip: str) -> set[gint]:
         if z not in loop:
             thegrid[z] = '.'
 
-    print(thegrid.rect().picture(lambda z: thegrid[z]))
-    input()
+    # print(thegrid.rect().picture(lambda z: thegrid[z]))
+    # input()
 
-    def neighbours(point):
+    def neighbours(point: gint) -> Iterator[gint]:
         # adjacent points, not including those where there's a boundary in between
         for direction in grid.NESW:
             adj = point + direction
@@ -313,7 +316,7 @@ def get_outside_loop_set(ip: str) -> set[gint]:
         | {gint(i, thegrid.height + 1) for i in range(thegrid.width)}
     )
 
-    new_outside_loop = list(outside_loop)
+    new_outside_loop = set(outside_loop)
 
     while True:
         # print()

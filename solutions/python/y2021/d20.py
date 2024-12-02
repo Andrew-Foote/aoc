@@ -70,7 +70,7 @@ class Img:
 	def picture(self: Self) -> str:
 		return self.rect().picture(lambda z: self[z].value)
 
-def parse(ip: str) -> list[Alg, Img]:
+def parse(ip: str) -> tuple[Alg, Img]:
 	alg_s, img_s = ip.split('\n\n')
 	alg_s = alg_s.replace('\n', '')
 	assert len(alg_s) == 512
@@ -148,6 +148,8 @@ def p1(ip: str) -> int:
 		if i == 2:
 			return sum(1 for z, color in img.entries.items() if color == Color.LIGHT)
 
+	assert False
+
 def p2(ip: str) -> int:
 	imgs = step(ip)
 
@@ -159,6 +161,7 @@ def p2(ip: str) -> int:
 		if i == 50:
 			return sum(1 for z, color in img.entries.items() if color == Color.LIGHT)
 
+	assert False
 
 # 5255
 # 5761

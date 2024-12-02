@@ -2,6 +2,7 @@ from collections import Counter
 from dataclasses import dataclass
 import re
 from utils import joinlines
+from solutions.python.lib.gint import gint
 from solutions.python.lib.grid import Rect
 
 test_inputs = [
@@ -28,7 +29,7 @@ def parse_claim(claim: str) -> Claim:
 
 def p1(ip: str) -> int:
 	claims = map(parse_claim, ip.splitlines())
-	claimed = Counter()
+	claimed: Counter[gint] = Counter()
 
 	for claim in claims:
 		for p in claim.rect:
@@ -39,7 +40,7 @@ def p1(ip: str) -> int:
 def p2(ip: str):
 	claims = set(map(parse_claim, ip.splitlines()))
 	candidates = claims.copy()
-	claimed = {}
+	claimed: dict[gint, Claim] = {}
 
 	for claim in claims:
 		for p in claim.rect:
@@ -51,6 +52,5 @@ def p2(ip: str):
 			else:
 				claimed[p] = claim
 
-	print(candidates)
 	assert len(candidates) == 1
 	return candidates.pop().id_
