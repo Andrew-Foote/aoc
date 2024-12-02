@@ -10,6 +10,8 @@ test_inputs = [
 1 3 6 7 9''', [
 		('safe_reports_csv','0,5'),
 		('p1', 2),
+		('p2_safe_reports_csv','0,3,4,5'),
+		('p2', 4),
 	])
 ]
 
@@ -39,3 +41,20 @@ def safe_reports_csv(ip: str) -> str:
 
 def p1(ip: str) -> int:
 	return len(list(safe_reports(ip)))
+
+def dampenings(report: Report) -> Iterator[Report]:
+	for i in range(len(report)):
+		yield report[:i] + report[i + 1:]
+
+def p2_safe_reports(ip: str) -> Iterator[int]:
+	for i, report in enumerate(parse(ip)):
+		for dampening in dampenings(report):
+			if report_is_safe(dampening):
+				yield i
+				break
+
+def p2_safe_reports_csv(ip: str) -> str:
+	return ','.join(map(str, p2_safe_reports(ip)))
+
+def p2(ip: str) -> int:
+	return len(list(p2_safe_reports(ip)))
