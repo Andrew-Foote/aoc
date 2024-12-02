@@ -333,7 +333,7 @@ class AOC:
             success = False
 
         # strip html tags for display
-        body = re.sub(r'<.*?>', '', body, re.DOTALL)
+        body = re.sub(r'<.*?>', '', body, flags=re.DOTALL)
 
         return success, body
 
