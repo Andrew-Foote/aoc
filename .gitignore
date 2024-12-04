@@ -8,3 +8,6 @@ db.sqlite
 input
 *.lprof
 *.prof
+solutions/haskell/dist-newstyle
+*.hi
+*.ho
