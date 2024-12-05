@@ -60,6 +60,7 @@ executable aoc
     -- Modules included in this executable, other than Main.
     other-modules:
         AOC,
+        Y2015.D5,
         Y2024.D1,
         Y2024.D4
 
