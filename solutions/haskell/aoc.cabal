@@ -67,7 +67,7 @@ executable aoc
     other-extensions:
 
     -- Other library packages from which modules are imported.
-    build-depends:    aeson, base, containers, linear, text
+    build-depends:    aeson, base, containers, lens, linear, text
 
     -- Directories containing source files.
     hs-source-dirs:   app, src

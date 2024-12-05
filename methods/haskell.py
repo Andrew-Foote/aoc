@@ -52,7 +52,7 @@ def _run(year: int, day: int, mode: Mode) -> str:
         ], encoding='utf-8', input=ip)
 
 def has_facet(year: int, day: int, facet: str) -> bool:
-    output = _run(year, day, HasFacetMode(facet)).strip()
+    output = _run(year, day, HasFacetMode(facet))
 
     match output:
         case 'y':
@@ -65,7 +65,7 @@ def has_facet(year: int, day: int, facet: str) -> bool:
             )
 
 def run_facet(year: int, day: int, facet: str, ip: str) -> str:
-    return _run(year, day, RunFacetMode(facet, ip)).strip()
+    return _run(year, day, RunFacetMode(facet, ip))
 
 def test_defs(year: int, day: int) -> methodlib.TestDefs:
     output = _run(year, day, TestDefsMode())

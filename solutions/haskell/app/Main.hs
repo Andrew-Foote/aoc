@@ -21,7 +21,7 @@ sol year day = case (year, day) of
 hasFacet :: Integer -> Integer -> String -> IO ()
 hasFacet year day facet = do
     let ans = isJust $ lookup facet $ solFacets $ sol year day
-    putStrLn (if ans then "y" else "n")
+    putStr (if ans then "y" else "n")
 
 runFacet :: Integer -> Integer -> String -> IO ()
 runFacet year day facet = do
@@ -29,7 +29,7 @@ runFacet year day facet = do
     case mFacet of
         Just f -> do
             input <- getContents
-            putStrLn $ f input
+            putStr $ f input
         Nothing -> die $ "facet '" ++ facet ++ "' does not exist"
 
 testDefs :: Integer -> Integer -> IO ()
