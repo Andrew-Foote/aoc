@@ -6,6 +6,7 @@ import Data.Functor ((<&>))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (isJust)
+import Data.Set (Set)
 import qualified Data.Set as Set
 import Linear.V2 (V2(..), _x, _y)
 
@@ -99,12 +100,53 @@ p1Pic ip = let
         & Map.filterWithKey (\key _ -> Set.member key keysToKeep)
         & drawGrid
 
+crossMasSet :: Grid -> V2 Integer -> String -> Set (V2 Integer)
+crossMasSet grid pos layout = let
+    path = [V2 (-1) (-1), V2 1 (-1), V2 0 0, V2 (-1) 1, V2 1 1]
+        <&> (+pos)
+    letters = map (\pathPos -> Map.lookup pathPos grid) path
+    in if letters == map Just layout
+        then Set.fromList path
+        else Set.empty
+
+isCrossMas :: Grid -> V2 Integer -> String -> Bool
+isCrossMas grid pos layout = not $ Set.null $ crossMasSet grid pos layout
+
+-- M M  S M  M S  S S
+--  A    A    A    A
+-- S S  S M  M S  M M
+
+crossMasLayouts :: [String]
+crossMasLayouts = ["MMASS", "SMASM", "MSAMS", "SSAMM"]
+
+p2 :: String -> String
+p2 ip = let
+    grid = parse ip
+    in Map.keys grid
+        <&> (\pos -> length $ filter (isCrossMas grid pos) crossMasLayouts)
+        & sum
+        & show
+
+p2Pic :: String -> String
+p2Pic ip = let
+    grid = parse ip
+    keysToKeep = Map.keys grid
+        <&> (\pos -> crossMasLayouts
+            <&> crossMasSet grid pos
+            & Set.unions)
+        & Set.unions
+    in grid
+        & Map.filterWithKey (\key _ -> Set.member key keysToKeep)
+        & drawGrid
+
 sol :: Sol
 sol = Sol
     [
         ("parseS", parseS),
         ("p1", p1),
-        ("p1Pic", p1Pic)
+        ("p1Pic", p1Pic),
+        ("p2", p2),
+        ("p2Pic", p2Pic)
     ]
     [
         Test "smallExample"
@@ -138,6 +180,19 @@ sol = Sol
                 ".A.A.A.A.A",
                 "..M.M.M.MM",
                 ".X.X.XMASX"
+            ]),
+            ("p2", "9"),
+            ("p2Pic", unlines [
+                ".M.S......",
+                "..A..MSMS.",
+                ".M.S.MAA..",
+                "..A.ASMSM.",
+                ".M.S.M....",
+                "..........",
+                "S.S.S.S.S.",
+                ".A.A.A.A..",
+                "M.M.M.M.M.",
+                ".........."
             ])
         ]
     ]
