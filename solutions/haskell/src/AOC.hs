@@ -1,6 +1,6 @@
 module AOC where
 
-import Data.Aeson
+import Data.Aeson ( ToJSON(toJSON) )
 
 data Test = Test {
     testInputName :: String,

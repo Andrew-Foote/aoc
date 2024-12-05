@@ -1,113 +1,115 @@
 module Y2024.D4 where
 
-import Control.Lens.Getter ((^.))
+import qualified Data.List.NonEmpty as NEList
 import Data.Function ((&))
 import Data.Functor ((<&>))
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe (isJust)
+import Data.Maybe (catMaybes)
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Linear.V2 (V2(..), _x, _y)
+import Linear.V2 (V2(..))
 
 import AOC (Sol(..), Test(..))
 
--- we need to find all substrings matching XMAS,
--- where a substring can be obtained by traversing
--- the grid horizontally, vertically or diagonally,
--- in either direction, and overlaps count.
+data Grid = Grid
+    { gridWidth :: Integer
+    , gridHeight :: Integer
+    , gridContent :: Map (V2 Integer) Char
+    } deriving Show
 
--- iterate over the wordsearch, whenever we find an
--- X, search in each direction for a match
+gridPoints :: Grid -> [V2 Integer]
+gridPoints (Grid _ _ gridContent) = Map.keys gridContent
 
-type Grid = Map (V2 Integer) Char
+gridLookup :: V2 Integer -> Grid -> Maybe Char
+gridLookup point (Grid _ _ gridContent) = Map.lookup point gridContent
 
 parse :: String -> Grid
-parse ip = lines ip
-    & zip [0..]
-    <&> \case
-        (rowNum, line) -> zip [0..] line
-            <&> \case (colNum, letter) -> (V2 colNum rowNum, letter)
-    & concat
-    & Map.fromList
+parse ip = Grid width height content
+  where
+    inputLines = NEList.fromList $ lines ip
+    height = toInteger $ length inputLines
+    width = toInteger $ length $ NEList.head inputLines
+    content = 
+        zip [0..] (NEList.toList inputLines)
+        <&> \case
+            (rowNum, line) -> 
+                zip [0..] line
+                <&> \case
+                    (colNum, letter) -> (V2 colNum rowNum, letter)
+        & concat
+        & Map.fromList
 
 parseS :: String -> String
 parseS ip = show $ parse ip
 
 dirs :: [V2 Integer]
-dirs = [
-    V2 0 1, -- downwards
-    V2 0 (-1), -- upwards
-    V2 1 0, -- rightwards
-    V2 (-1) 0, -- leftwards
-    V2 1 1, -- diagonally to the bottom right
-    V2 1 (-1), -- diagonally to the top right
-    V2 (-1) 1, -- diagonally to the bottom left
-    V2 (-1) (-1) -- diagonally to the top left
+dirs = map (uncurry V2)
+    [ (-1, -1), (0, -1), (1, -1)
+    , (-1,  0),          (1,  0)
+    , (-1,  1), (0,  1), (1,  1)
     ]
 
-xmasPath :: Grid -> V2 Integer -> V2 Integer -> Maybe [V2 Integer]
-xmasPath grid pos dir = let
-    path = [0..3] <&> \n -> let
-        pathPos = pos + (pure n) * dir
-        in (pathPos, Map.lookup pathPos grid)
-    in case map snd path of
-        [Just 'X', Just 'M', Just 'A', Just 'S'] -> Just $ map fst path
-        _ -> Nothing
+xmasSet :: Grid -> V2 Integer -> V2 Integer -> Set (V2 Integer)
+xmasSet grid pos dir =
+    case letters of
+        "XMAS" -> Set.fromList path
+        _      -> Set.empty
+      where
+        path = [0..3] <&> (\n -> pos + (pure n) * dir)
+        letters = path <&> flip gridLookup grid & catMaybes
 
 isXmas :: Grid -> V2 Integer -> V2 Integer -> Bool
-isXmas grid pos dir = isJust $ xmasPath grid pos dir
+isXmas grid pos dir = not $ Set.null $ xmasSet grid pos dir
 
 p1 :: String -> String
-p1 ip = let
-    grid = parse ip
-    in Map.keys grid
-        <&> (\pos -> length $ filter (isXmas grid pos) dirs)
-        & sum
-        & show
-
-width :: Grid -> Integer
-width grid = Map.keys grid
-    <&> (^. _x)
-    & maximum
-    & (+1)
-
-height :: Grid -> Integer
-height grid = Map.keys grid
-    <&> (^. _y)
-    & maximum
-    & (+1)
+p1 ip =
+    gridPoints grid
+    <&> (\pos -> length $ filter (isXmas grid pos) dirs)
+    & sum
+    & show
+  where grid = parse ip
 
 drawGrid :: Grid -> String
-drawGrid grid = [0..(height grid - 1)]
-    <&> (\y -> [0..(width grid - 1)]
-            <&> (\x -> case Map.lookup (V2 x y) grid of
-                Just c -> c
-                Nothing -> '.'))
+drawGrid grid =
+    [0..(gridHeight grid - 1)]
+    <&> (\y ->
+        [0..(gridWidth grid - 1)]
+        <&> (\x ->
+                case gridLookup (V2 x y) grid of
+                    Just letter -> letter
+                    Nothing     -> '.'))
     & unlines
 
 p1Pic :: String -> String
-p1Pic ip = let
-    grid = parse ip
-    keysToKeep = Map.keys grid
-        <&> (\pos -> dirs
-            <&> (\dir -> case xmasPath grid pos dir of
-                Just path -> Set.fromList path
-                Nothing -> Set.empty)
-            & Set.unions)
-        & Set.unions
-    in grid
-        & Map.filterWithKey (\key _ -> Set.member key keysToKeep)
-        & drawGrid
+p1Pic ip = case grid of
+    (Grid width height content) ->
+        drawGrid $ Grid width height filteredContent
+      where
+        keysToKeep =
+            gridPoints grid
+            <&> (\pos -> dirs <&> xmasSet grid pos & Set.unions)
+            & Set.unions
+        filteredContent = Map.filterWithKey
+            (\key _ -> Set.member key keysToKeep)
+            content
+  where grid = parse ip
+
+cross :: [V2 Integer]
+cross = map (uncurry V2)
+    [ (-1, -1),         (1, -1)
+    ,           (0, 0)
+    , (-1,  1),         (1,  1)
+    ]
 
 crossMasSet :: Grid -> V2 Integer -> String -> Set (V2 Integer)
-crossMasSet grid pos layout = let
-    path = [V2 (-1) (-1), V2 1 (-1), V2 0 0, V2 (-1) 1, V2 1 1]
-        <&> (+pos)
-    letters = map (\pathPos -> Map.lookup pathPos grid) path
-    in if letters == map Just layout
+crossMasSet grid pos layout =
+    if catMaybes letters == layout
         then Set.fromList path
         else Set.empty
+      where
+        path = cross <&> (+pos)
+        letters = path <&> flip gridLookup grid
 
 isCrossMas :: Grid -> V2 Integer -> String -> Bool
 isCrossMas grid pos layout = not $ Set.null $ crossMasSet grid pos layout
@@ -115,29 +117,33 @@ isCrossMas grid pos layout = not $ Set.null $ crossMasSet grid pos layout
 -- M M  S M  M S  S S
 --  A    A    A    A
 -- S S  S M  M S  M M
-
 crossMasLayouts :: [String]
 crossMasLayouts = ["MMASS", "SMASM", "MSAMS", "SSAMM"]
 
 p2 :: String -> String
-p2 ip = let
-    grid = parse ip
-    in Map.keys grid
-        <&> (\pos -> length $ filter (isCrossMas grid pos) crossMasLayouts)
-        & sum
-        & show
+p2 ip =
+    gridPoints grid
+    <&> (\pos -> length $ filter (isCrossMas grid pos) crossMasLayouts)
+    & sum
+    & show
+  where grid = parse ip
 
 p2Pic :: String -> String
-p2Pic ip = let
-    grid = parse ip
-    keysToKeep = Map.keys grid
-        <&> (\pos -> crossMasLayouts
-            <&> crossMasSet grid pos
-            & Set.unions)
-        & Set.unions
-    in grid
-        & Map.filterWithKey (\key _ -> Set.member key keysToKeep)
-        & drawGrid
+p2Pic ip = case grid of
+    (Grid width height content) ->
+        drawGrid $ Grid width height filteredContent
+      where
+        keysToKeep =
+            gridPoints grid
+            <&> (\pos ->
+                crossMasLayouts
+                <&> crossMasSet grid pos
+                & Set.unions)
+            & Set.unions
+        filteredContent = Map.filterWithKey
+            (\key _ -> Set.member key keysToKeep)
+            content
+  where grid = parse ip
 
 sol :: Sol
 sol = Sol
@@ -152,7 +158,11 @@ sol = Sol
         Test "smallExample"
         (unlines ["MXM", "ABJ"])
         [
-            ("parseS", "fromList [(V2 0 0,'M'),(V2 0 1,'A'),(V2 1 0,'X'),(V2 1 1,'B'),(V2 2 0,'M'),(V2 2 1,'J')]")
+            ("parseS", show $ Grid 3 2 $ Map.fromList
+                [ (V2 0 0, 'M'), (V2 0 1, 'A')
+                , (V2 1 0, 'X'), (V2 1 1, 'B')
+                , (V2 2 0, 'M'), (V2 2 1, 'J')
+                ])
         ],
         Test "example"
         (unlines [
