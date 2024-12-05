@@ -20,6 +20,6 @@ def test_defs(year: int, day: int) -> methodlib.TestDefs:
     try:
         return getattr(module, 'test_inputs')
     except AttributeError:
-        return {}
+        return []
 
 methodlib.register('python', has_facet, run_facet, test_defs)

@@ -28,9 +28,13 @@ def _load(year: int, day: int) -> None:
 def has_facet(year: int, day: int, facet: str) -> bool:
     _load(year, day)
     
-    return bool(_db.execute(
-        'select exists(select * from "sqlite_schema" where "name" = ?)', (facet,)
-    ).fetchone()[0])
+    row = _db.execute(
+        'select exists(select * from "sqlite_schema" where "name" = ?)',
+        (facet,)
+    ).fetchone()
+
+    assert row is not None
+    return bool(row[0])
 
 def run_facet(year: int, day: int, facet: str, ip: str) -> str:
     _load(year, day)
@@ -40,6 +44,13 @@ def run_facet(year: int, day: int, facet: str, ip: str) -> str:
         on conflict do update set "content" = "excluded"."content"
     ''', (ip,))
 
-    return str(_db.execute(f'select "answer" from "{facet}"').fetchone()[0])
+    rows = _db.execute(f'select "answer" from "{facet}"').fetchall()
+
+    if len(rows) != 1:
+        raise RuntimeError(
+            f"expected a single row in '{facet}' table, got {len(rows)}"
+        )
+
+    return str(rows[0][0])
 
 methodlib.register('sql', has_facet, run_facet)

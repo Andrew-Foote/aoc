@@ -14,7 +14,7 @@ from typing import Iterator, Optional
 import urllib.parse
 import urllib.request
 import methodlib
-from methods import python, sql
+from methods import haskell, python, sql
 from utils import newlineescape
 
 logging.basicConfig(

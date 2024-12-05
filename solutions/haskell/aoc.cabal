@@ -58,16 +58,16 @@ executable aoc
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    -- other-modules:
+    other-modules: AOC, Y2024.D1
 
     -- LANGUAGE extensions used by modules in this package.
-    -- other-extensions:
+    other-extensions:
 
     -- Other library packages from which modules are imported.
-    build-depends:    base
+    build-depends:    aeson, base, text
 
     -- Directories containing source files.
-    hs-source-dirs:   app
+    hs-source-dirs:   app, src
 
     -- Base language which the package is written in.
     default-language: GHC2024
