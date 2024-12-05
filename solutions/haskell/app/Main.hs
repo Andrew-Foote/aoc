@@ -9,10 +9,12 @@ import System.Exit
 
 import AOC
 import qualified Y2024.D1
+import qualified Y2024.D4
 
 sol :: Integer -> Integer -> Sol
 sol year day = case (year, day) of
     (2024, 1) -> Y2024.D1.sol
+    (2024, 4) -> Y2024.D4.sol
     _ -> error $ "Missing solution map entry for "
         ++ show year ++ " day " ++ show day
 
