@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from solutions.python.lib.gint import gint
 
 test_inputs = [
@@ -42,16 +43,15 @@ def parse(ip: str) -> tuple[Grid, gint]:
 
     return grid, guard_pos
 
-def p1(ip: str) -> int:
-    grid, guard_pos = parse(ip)
+def guard_path(grid: Grid, guard_pos: gint) -> Iterator[tuple[gint, gint]]:
     guard_dir = gint(0, -1)
-    path: set[gint] = {guard_pos}
 
     while True:
+        yield guard_pos, guard_dir
         new_pos = guard_pos + guard_dir
 
         if new_pos not in grid:
-            return len(path)
+            return
         
         char = grid[new_pos]
 
@@ -59,28 +59,26 @@ def p1(ip: str) -> int:
             guard_dir *= gint(0, 1)
         else:
             guard_pos += guard_dir
-            path.add(guard_pos)
 
-    assert False
+def p1(ip: str) -> int:
+    grid, guard_pos = parse(ip)
+    return len({pos for pos, _ in guard_path(grid, guard_pos)})
 
 def p2(ip: str) -> int:
-    grid: dict[gint, str] = {}
-    orig_guard_pos: gint
-    open_pos_set: set[gint] = set()
+    grid, orig_guard_pos = parse(ip)
 
-    for y, line in enumerate(ip.splitlines()):
-        for x, char in enumerate(line):
-            pos = gint(x, y)
-            grid[pos] = char
+    open_pos_set = {
+        pos for pos, _ in guard_path(grid, orig_guard_pos)
+        if grid[pos] == '.'
+    }
 
-            if char == '^':
-                orig_guard_pos = pos
-            elif char == '.':
-                open_pos_set.add(pos)
+    print(len(open_pos_set))
+    input()
 
-    cycle_pos_set = set()
+    cycle_pos_set: set[gint] = set()
 
     for open_pos in open_pos_set:
+        print(f'checking {open_pos}')
         grid[open_pos] = '#'
 
         guard_pos = orig_guard_pos
@@ -109,3 +107,6 @@ def p2(ip: str) -> int:
         grid[open_pos] = '.'
 
     return len(cycle_pos_set)
+
+# each open_pos can be checked reasonably quickly
+# but there are 16088 open positions
