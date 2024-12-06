@@ -58,6 +58,15 @@ def transitive_closure(rules: set[Rule]) -> set[Rule]:
     # actually, turns out we don't need to do this --- the supplied set of
     # rules is already transitive! (which also means the code below has not
     # been tested at all!)
+
+    # and furthermore: as a post on reddit points out
+    # (https://old.reddit.com/r/adventofcode/comments/1h7mm3w/2024_day_05_part_2_how_nice_is_the_input_a_binary/),
+    # this was evident in the problem description. since we have to be able
+    # to determine the middle element of each corrected update, each corrected
+    # update must have a unique ordering. and if the ordering is only partial,
+    # that means there are two elements (x, y) where 
+
+
     return rules
 
     rtl: defaultdict[int, set[int]] = defaultdict(set)
