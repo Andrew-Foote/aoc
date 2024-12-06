@@ -1,4 +1,6 @@
 from collections.abc import Iterator
+import statistics
+import time
 from solutions.python.lib.gint import gint
 
 test_inputs = [
@@ -77,36 +79,27 @@ def p2(ip: str) -> int:
 
     cycle_pos_set: set[gint] = set()
 
+    times: list[int] = []
+
     for open_pos in open_pos_set:
-        print(f'checking {open_pos}')
+        start_time = time.perf_counter_ns()
         grid[open_pos] = '#'
+        seen: set[tuple[gint, gint]] = set()
 
-        guard_pos = orig_guard_pos
-        guard_dir = gint(0, -1)
-        path: set[tuple[gint, gint]] = set()
-
-        while True:
-            if (guard_pos, guard_dir) in path:
+        for guard_pos, guard_dir in guard_path(grid, orig_guard_pos):
+            if (guard_pos, guard_dir) in seen:
                 cycle_pos_set.add(open_pos)
                 break
             else:
-                path.add((guard_pos, guard_dir))
-
-            new_pos = guard_pos + guard_dir
-
-            if new_pos not in grid:
-                break
-           
-            char = grid[new_pos]
-
-            if char == '#':
-                guard_dir *= gint(0, 1)
-            else:
-                guard_pos += guard_dir
+                seen.add((guard_pos, guard_dir))
 
         grid[open_pos] = '.'
+        end_time = time.perf_counter_ns()
+        time_diff = end_time - start_time
+        times.append(time_diff)
+        print(f'time for {open_pos} iteration was {time_diff} ns')
+        print(f'running avg so far: {statistics.mean(times)}')
+        # avg for p2 is 13123695.015102698
+        # 
 
     return len(cycle_pos_set)
-
-# each open_pos can be checked reasonably quickly
-# but there are 16088 open positions
