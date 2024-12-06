@@ -55,6 +55,11 @@ class Rule:
         return cls(int(lhs), int(rhs))
 
 def transitive_closure(rules: set[Rule]) -> set[Rule]:
+    # actually, turns out we don't need to do this --- the supplied set of
+    # rules is already transitive! (which also means the code below has not
+    # been tested at all!)
+    return rules
+
     rtl: defaultdict[int, set[int]] = defaultdict(set)
 
     for rule in rules:
