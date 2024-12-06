@@ -528,18 +528,24 @@ if __name__ == '__main__':
             answer = method.run_facet(year, day, facet, test_input)
 
             if answer != expected_test_answer:
-                print(f"failed (got '{newlineescape(answer)}', expected '{newlineescape(expected_test_answer)}')")
+                print(f"failed (got '{answer}', expected '{expected_test_answer}')")
+                answer_len = len(answer)
+                expected_len = len(expected_test_answer)
 
-                if max(len(answer), len(expected_test_answer)) > 20:
-                    diff_pos = next(
-                        i for i, (c1, c2)
-                        in enumerate(zip(answer, expected_test_answer))
-                        if c1 != c2
-                    )
-                    
-                    print(f'first difference at index {diff_pos}')
-                    print(f'  got:      {newlineescape(answer[diff_pos:])}')
-                    print(f'  expected: {newlineescape(answer[diff_pos:])}')
+                if max(answer_len, expected_len) > 20:
+                    if answer_len != expected_len:
+                        print(f'  got answer length is {answer_len}')
+                        print(f'  expected answer length is {expected_len}')
+                    else:
+                        diff_pos = next(
+                            i for i, (c1, c2)
+                            in enumerate(zip(answer, expected_test_answer))
+                            if c1 != c2
+                        )
+                        
+                        print(f'  first difference at index {diff_pos}')
+                        print(f'  got:      {newlineescape(answer[diff_pos:])}')
+                        print(f'  expected: {newlineescape(answer[diff_pos:])}')
             else:
                 print(f"succeeded (got '{newlineescape(answer)}' as expected)")
         else:

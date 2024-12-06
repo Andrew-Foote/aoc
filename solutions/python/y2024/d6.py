@@ -153,29 +153,76 @@ def p1(ip: str) -> int:
 def cyclic_guard_paths(
     grid: Grid, orig_guard_pos: gint
 ) -> Iterator[tuple[gint, dict[gint, set[gint]]]]:
+    
+    unobstructed_path = list(guard_path(grid, orig_guard_pos))
+    unobstructed_seen = defaultdict(set)
+    poss_cycle_pos_set: set[gint] = set()
+    seen0: set[gint] = set()
+    
+    # maps each node (position/direction pair) in the unobstructed path to the
+    # set of positions p such that, if the guard continues to travel along the
+    # unobstructed path, they will end up facing p (so that their next step,
+    # if unobstructed, would be to move to p)
+    #
+    # if p is the pos we've added the obstruction to, then as long as p does
+    # not belong to this set, it should be the case that once the guard
+    # reaches this node, they're going to leave the map
+    facing_map: defaultdict[tuple[gint, gint], set[gint]] = defaultdict(set)
 
-    open_pos_set = {
-        pos for pos, _ in guard_path(grid, orig_guard_pos)
-        if grid[pos] == '.'
-    }
+    for pos, dir in unobstructed_path:
+        if grid[pos] == '.':
+            poss_cycle_pos_set.add(pos)
 
-    for open_pos in open_pos_set:
-        grid[open_pos] = '#'
+        unobstructed_seen[pos].add(dir)
+
+        seen0.add((pos, dir))
+
+        for node in seen0:
+            facing_map[node].add(pos + dir)
+
+    for poss_cycle_pos in poss_cycle_pos_set:
+        grid[poss_cycle_pos] = '#'
         seen: dict[gint, set[gint]] = defaultdict(set)
+        gronk = None
 
         for guard_pos, guard_dir in guard_path(grid, orig_guard_pos):
             if guard_dir in seen[guard_pos]:
-                yield open_pos, seen
-                break
+                if gronk is not None:
+                    # print('SHOULD BE CYCLE, BUT LEAVING INSTEAD!!!')
+                    # print('PIC IF UNOBSTRUCTED')
+                    # print(cycle_pic(grid, guard_pos, gint(-1, -1), unobstructed_seen, None))
+                    # print('LEAVING RESULT')
+                    yield gronk
+                    # print('CYCLE RESULT')
+                    yield poss_cycle_pos, seen, None
+                else:
+                    # print('CYCLE!!!!')
+                    yield poss_cycle_pos, seen, None
+                    break
             else:
                 seen[guard_pos].add(guard_dir)
 
-        grid[open_pos] = '.'
+            if gronk is None and (guard_pos, guard_dir) in unobstructed_seen and poss_cycle_pos not in facing_map[guard_pos, guard_dir]:
+                # print('LEAVING!!!')
+                gronk = poss_cycle_pos, seen, (guard_pos, guard_dir)
+
+        grid[poss_cycle_pos] = '.'
+
+        # if gronk is not None:
+        #     yield gronk
 
 def cycle_pic(
-    grid: Grid, guard_pos: gint, cycle_pos: gint, seen: dict[gint, set[gint]]
+    grid: Grid, guard_pos: gint, cycle_pos: gint, seen: dict[gint, set[gint]],
+    early_exit: tuple[gint, gint] | None=None
 ) -> str:
+    
     def pos_pic(pos: gint) -> str:
+        if early_exit is not None and pos == early_exit[0]:
+            return {
+                gint(0, -1): 'U', gint(0, 1): 'D',
+                gint(-1, 0): 'L', gint(1, 0): 'R'
+            }[early_exit[1]]
+
         if pos == guard_pos:
             return '^'
 
@@ -201,19 +248,18 @@ def cycle_pos_pics(ip: str) -> str:
     grid, guard_pos = parse(ip)
     pics: dict[gint, str] = {}
 
-    for cycle_pos, seen in cyclic_guard_paths(grid, guard_pos):
-        pics[cycle_pos] = cycle_pic(grid, guard_pos, cycle_pos, seen)
+    for cycle_pos, seen, early_exit in cyclic_guard_paths(grid, guard_pos):
+        pics[cycle_pos] = cycle_pic(
+            grid, guard_pos, cycle_pos, seen, early_exit
+        )
 
     cycle_pos_list = sorted(pics.keys(), key=lambda pos: (pos.imag, pos.real))
     return '\n\n'.join(pics[pos] for pos in cycle_pos_list)
 
 def p2(ip: str) -> int:
-    grid, guard_pos = parse(ip)
-    cycle_pos_set: set[gint] = set()
-
-    for cycle_pos, seen in cyclic_guard_paths(grid, guard_pos):
-        cycle_pos_set.add(cycle_pos)
-        print(cycle_pic(grid, guard_pos, cycle_pos, seen))
-        input()
-
-    return len(cycle_pos_set)
+    grid, orig_guard_pos = parse(ip)
+    
+    return len({
+        cycle_pos for cycle_pos, _, _
+        in cyclic_guard_paths(grid, orig_guard_pos)
+    })
