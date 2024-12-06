@@ -1,4 +1,5 @@
-from collections.abc import Iterator
+from collections import defaultdict
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 import functools as ft
 import math
@@ -37,6 +38,8 @@ test_inputs = [
         ('correct_updates_csv','0,1,2'),
         ('middle_page_numbers_csv', '61,53,29'),
         ('p1', 143),
+        ('corrected_updates_csv', '97,75,47,61,53;61,29,13;97,75,47,29,13'),
+        ('p2', 123)
     ]),
 ]
 
@@ -49,7 +52,22 @@ class Rule:
     def parse(cls, s: str) -> Self:
         lhs, rhs = s.split('|')
         return cls(int(lhs), int(rhs))
-    
+
+def transitive_closure(ruleset: set[Rule]) -> set[Rule]:
+    rtl: defaultdict[int, set[int]] = defaultdict(set)
+
+    for rule in ruleset:
+        middle = rule.lhs
+        right = rule.rhs
+        lefts = rtl[right]
+
+        for left in rtl[middle]:
+            lefts.add(left)
+
+        lefts.add(middle) 
+
+    return {Rule(left, right) for right, lefts in rtl.items() for left in lefts}
+
 @dataclass
 class Update:
     nums: list[int]
@@ -72,6 +90,19 @@ class Update:
                 return False
         
         return True
+    
+    def corrected(self, rules: set[Rule]) -> Self:
+        def cmp(num1: int, num2: int) -> int:
+            if num1 == num2:
+                return 0
+            elif Rule(num1, num2) in rules:
+                return -1
+            elif Rule(num2, num1) in rules:
+                return 1
+            else:
+                raise ValueError('ordering is not total')
+
+        return self.__class__(sorted(self.nums, key=ft.cmp_to_key(cmp)))
 
 def parse(ip: str) -> tuple[list[Rule], list[Update]]:
     rules_s, updates_s = ip.split('\n\n')
@@ -86,16 +117,33 @@ def correct_updates(ip: str) -> Iterator[Update]:
         if update.is_correct(rules):
             yield update
 
-def middle_page_numbers(ip: str) -> Iterator[int]:
-    for update in correct_updates(ip):
+def correct_updates_csv(ip: str) -> str:
+    rules, updates = parse(ip)
+    
+    return ','.join(
+        str(i) for i, update in enumerate(updates)
+        if update.is_correct(rules)
+    )
+
+def middle_page_numbers(updates: Iterable[Update]) -> Iterator[int]:
+    for update in updates:
         l = len(update.nums)
         assert l % 2, 'number of pages included by update is even'
         yield update.nums[l // 2]
 
 def middle_page_numbers_csv(ip: str) -> str:
-    return ','.join(map(str, middle_page_numbers(ip)))
+    return ','.join(map(str, middle_page_numbers(correct_updates(ip))))
 
 def p1(ip: str) -> int:
-    return sum(middle_page_numbers(ip))
+    return sum(middle_page_numbers(correct_updates(ip)))
 
+def corrected_updates(ip: str) -> Iterator[Update]:
+    rules, updates = parse(ip)
+    closure = transitive_closure(set(rules))
 
+    for update in updates:
+        if not update.is_correct(rules):
+            yield update.corrected(closure)
+
+def p2(ip: str) -> int:
+    return sum(middle_page_numbers(corrected_updates(ip)))
