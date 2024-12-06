@@ -55,68 +55,19 @@ class Rule:
         return cls(int(lhs), int(rhs))
 
 def transitive_closure(rules: set[Rule]) -> set[Rule]:
-    domain = set().union(*({rule.lhs, rule.rhs} for rule in rules))
+    rtl: defaultdict[int, set[int]] = defaultdict(set)
 
-    while True:
-        complete = True
+    for rule in rules:
+        middle = rule.lhs
+        right = rule.rhs
+        lefts = rtl[right]
 
-        for a, b, c in it.product(domain, repeat=3):
-            r1 = Rule(a, b)
-            r2 = Rule(b, c)
-            r3 = Rule(a, c)
+        for left in rtl[middle]:
+            lefts.add(left)
 
-            if r1 in rules and r2 in rules and r3 not in rules:
-                complete = False
-                rules.add(r3)
+        lefts.add(middle) 
 
-        if complete:
-            break
-
-    return rules
-
-# copying the algorithm from wikipedia
-# although it turns out my transitive closure algorithm is fast enough
-# def toposort(adjacency_list: dict[int, int]) -> list[int]:
-#     result: list[int] = []
-#     not_permmarked: set[int] = set(adjacency_list.keys())
-#     tempmarked: set[int] = set()
-    
-#     def visit(num: int) -> None:
-#         if num not in not_permmarked:
-#             return
-        
-#         if num in tempmarked:
-#             raise ValueError('cycle')
-        
-#         for num2 in adjacency_list[num]:
-#             visit(num2)
-
-#         not_permmarked.remove(num)
-
-#         # at this point, all nums that succeed num
-#         # should already be present in the list
-#         result.preppend(num)
-
-#     while not_permmarked:
-#         num = not_permmarked.pop()
-#         visit(num)
-
-#     return result
-
-# def transitive_closure(ruleset: set[Rule]) -> set[Rule]:
-#     rtl: defaultdict[int, set[int]] = defaultdict(set)
-
-#     for rule in ruleset:
-#         middle = rule.lhs
-#         right = rule.rhs
-#         lefts = rtl[right]
-
-#         for left in rtl[middle]:
-#             lefts.add(left)
-
-#         lefts.add(middle) 
-
-#     return {Rule(left, right) for right, lefts in rtl.items() for left in lefts}
+    return {Rule(left, right) for right, lefts in rtl.items() for left in lefts}
 
 @dataclass
 class Update:
@@ -146,10 +97,7 @@ class Update:
             if num1 == num2:
                 return 0
             elif Rule(num1, num2) in rules and Rule(num2, num1) in rules:
-                print(rules)
-                print(num1, num2)
-                #raise ValueError('ordering is not antisymmetric')
-                return 0
+                raise ValueError('ordering is not antisymmetric')
             elif Rule(num1, num2) in rules:
                 return -1
             elif Rule(num2, num1) in rules:
@@ -198,6 +146,11 @@ def corrected_updates(ip: str) -> Iterator[Update]:
     for update in updates:
         nums = set(update.nums)
         
+        # part that made me struggle with this was not realizing that it was
+        # important to only include the relevant rules here
+        # if you compute the transitive closure of the whole set of rules
+        # outside the loop and use that, you get a wrong answer for my input
+        # on p2 (though not for the example input)
         relevant_rules = {
             rule for rule in rules if rule.lhs in nums and rule.rhs in nums
         }
@@ -209,4 +162,3 @@ def corrected_updates(ip: str) -> Iterator[Update]:
 
 def p2(ip: str) -> int:
     return sum(middle_page_numbers(corrected_updates(ip)))
-# 5326 is too high
