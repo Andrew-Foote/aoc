@@ -529,6 +529,17 @@ if __name__ == '__main__':
 
             if answer != expected_test_answer:
                 print(f"failed (got '{newlineescape(answer)}', expected '{newlineescape(expected_test_answer)}')")
+
+                if max(len(answer), len(expected_test_answer)) > 20:
+                    diff_pos = next(
+                        i for i, (c1, c2)
+                        in enumerate(zip(answer, expected_test_answer))
+                        if c1 != c2
+                    )
+                    
+                    print(f'first difference at index {diff_pos}')
+                    print(f'  got:      {newlineescape(answer[diff_pos:])}')
+                    print(f'  expected: {newlineescape(answer[diff_pos:])}')
             else:
                 print(f"succeeded (got '{newlineescape(answer)}' as expected)")
         else:

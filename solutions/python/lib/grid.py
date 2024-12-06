@@ -360,6 +360,9 @@ class Grid(Generic[T]):
 
     def rect(self):
         return Rect.bounding((self.origin, self.origin + gint(self.width - 1, self.height - 1)))
+    
+    def __contains__(self, point: gint) -> bool:
+        return point in self.rect()
 
     @classmethod
     def fromrect(cls: Type[Self], rect: Rect, label: Callable[[gint], T]) -> Self:
@@ -390,6 +393,9 @@ class Grid(Generic[T]):
             cols.append(col)
 
         return cols
+
+    def picture(self: Self) -> str:
+        return self.rect.picture(lambda pos: str(self[pos]))
 
 @dataclass
 class DefaultGrid(Generic[T]):
