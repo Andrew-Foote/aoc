@@ -11,12 +11,14 @@ import AOC ( Sol(solTests, solFacets) )
 import qualified Y2015.D5
 import qualified Y2024.D1
 import qualified Y2024.D4
+import qualified Y2024.D7
 
 sol :: Integer -> Integer -> Sol
 sol year day = case (year, day) of
     (2015, 5) -> Y2015.D5.sol
     (2024, 1) -> Y2024.D1.sol
     (2024, 4) -> Y2024.D4.sol
+    (2024, 7) -> Y2024.D7.sol
     _ -> error $ "Missing solution map entry for "
         ++ show year ++ " day " ++ show day
 

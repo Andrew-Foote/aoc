@@ -62,10 +62,11 @@ executable aoc
         AOC,
         Y2015.D5,
         Y2024.D1,
-        Y2024.D4
+        Y2024.D4,
+        Y2024.D7
 
     -- LANGUAGE extensions used by modules in this package.
-    other-extensions:
+    other-extensions: OverloadedStrings
 
     -- Other library packages from which modules are imported.
     build-depends:    aeson, base, containers, lens, linear, text

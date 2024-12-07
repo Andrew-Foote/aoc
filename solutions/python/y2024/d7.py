@@ -155,3 +155,16 @@ def p2(ip: str) -> int:
         equation.test_val for equation in parse(ip)
         if equation.has_valid_op_seq(P2_OPS)
     )
+
+# alternative approach:
+# (not completely my own, i looked on the reddit and saw somebody mention 
+# something about "unrolling" it in reverse from the target)
+# given the target, and the list of operands
+# we look at the last operand first
+# we try to "divide" the target by that operand, with each operator
+#  - if it's addition, we subtract the operand
+#  - if it's multiplication, we divide the operand (can exit early if it's
+#    not divisible
+#  - if it's concatenation, we just check that it has the operand as a suffix,
+#    and then take the prefix
+# I'll do this in Haskell
