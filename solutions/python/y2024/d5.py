@@ -95,7 +95,7 @@ class Update:
     def parse(cls, s: str) -> Self:
         return cls(list(map(int, s.split(','))))
 
-    def is_correct(self, rules: list[Rule]) -> bool:
+    def is_correct(self, rules: set[Rule]) -> bool:
         for rule in rules:
             ixs = self.indices
             li = ixs.get(rule.lhs, -math.inf)
@@ -131,15 +131,16 @@ def correct_updates(ip: str) -> Iterator[Update]:
     rules, updates = parse(ip)
     
     for update in updates:
-        if update.is_correct(rules):
+        if update.is_correct(set(rules)):
             yield update
 
 def correct_updates_csv(ip: str) -> str:
     rules, updates = parse(ip)
-    
+    ruleset = set(rules)
+
     return ','.join(
         str(i) for i, update in enumerate(updates)
-        if update.is_correct(rules)
+        if update.is_correct(ruleset)
     )
 
 def middle_page_numbers(updates: Iterable[Update]) -> Iterator[int]:

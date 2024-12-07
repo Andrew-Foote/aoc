@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 import itertools as it
-from typing import Any, Callable, Generic, Iterable, Iterator, Optional, Self, Type, TypeVar
+from typing import Any, Callable, cast, Generic, Iterable, Iterator, Optional, Self, Type, TypeVar
 from solutions.python.lib.gint import gint, gint_rect
 
 # north-east-south-west (up-right-down-left) direction vectors
@@ -324,7 +324,6 @@ class Path:
                 yield p
 
 T = TypeVar('T')
-U = TypeVar('U')
 
 @dataclass
 class Grid(Generic[T]):
@@ -334,10 +333,9 @@ class Grid(Generic[T]):
     def __init__(
         self: Self,
         rows: Iterable[Iterable[T]],
-        origin: gint=gint(),
-        conv: Callable[[T], U]=lambda x: x
+        origin: gint=gint()
     ) -> None:
-        self.rows = [list(map(conv, row)) for row in rows]
+        self.rows = [list(row) for row in rows]
 
         if not self.rows:
             raise ValueError('grid is empty')
@@ -346,6 +344,9 @@ class Grid(Generic[T]):
             raise ValueError('rows are not all same length')
 
         self.origin = origin
+
+    def copy(self) -> Self:
+        return self.__class__([row.copy() for row in self.rows], self.origin)
 
     def __hash__(self):
         return hash(tuple(tuple(row) for row in self.rows))
@@ -395,7 +396,7 @@ class Grid(Generic[T]):
         return cols
 
     def picture(self: Self) -> str:
-        return self.rect.picture(lambda pos: str(self[pos]))
+        return self.rect().picture(lambda pos: str(self[pos]))
 
 @dataclass
 class DefaultGrid(Generic[T]):
