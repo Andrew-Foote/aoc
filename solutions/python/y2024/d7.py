@@ -1,8 +1,6 @@
-from collections.abc import Iterator, Generator
+from collections.abc import Generator
 from dataclasses import dataclass
 from enum import Enum
-import itertools as it
-import math
 from typing import assert_never
 from solutions.python.lib import digits
 
@@ -48,11 +46,13 @@ class Operator(Enum):
             case Operator.MUL:
                 return a * b
             case Operator.CAT:
-                return a * 10 ** (math.floor(math.log10(b)) + 1) + b
                 return a * 10 ** digits.digit_count(b) + b
             case _:
                 assert_never(self)
 
+# (I didn't end up using any of this, instead used the simpler fact that
+# ADD, MUL and CAT are all increasing functions of their operands)
+#
 # Suppose a and b are positive integers.
 #
 # THEOREM 1. cmp(a + b, ab) = {
@@ -83,39 +83,17 @@ class Operator(Enum):
 class Equation:
     test_val: int
     operands: list[int]
-    
-    def poss_op_seqs(
-        self, available_ops: list[Operator]
-    ) -> Iterator[tuple[Operator, ...]]:
-    
-        return it.product(available_ops, repeat=len(self.operands) - 1)        
-
-    def op_seq_result(self, op_seq: tuple[Operator, ...]) -> int:
-        assert len(op_seq) == len(self.operands) - 1
-        result = self.operands[0]
-
-        for operand, operator in zip(self.operands[1:], op_seq):
-            result = operator.apply(result, operand)
-
-        return result
-
-    def op_seq_is_valid(self, op_seq: tuple[Operator, ...]) -> bool:
-        return self.op_seq_result(op_seq) == self.test_val
         
     def valid_op_seqs(
         self, available_ops: list[Operator]
-    ) -> Iterator[tuple[Operator, ...]]:
-        
-        # print(f'{self}.valid_op_seqs({available_ops})')
+    ) -> Generator[tuple[Operator, ...]]:
         
         seq_len = len(self.operands) - 1
 
         def recurse(
             prefix: tuple[Operator, ...], result: int
-        ) -> Iterator[tuple[Operator, ...]]:
-            
-            #print(f'  recurse({prefix}, {result})')
-                        
+        ) -> Generator[tuple[Operator, ...]]:
+                                    
             if result > self.test_val:
                 return
 
@@ -131,23 +109,11 @@ class Equation:
                 yield from recurse(ext_prefix, ext_result)
 
         yield from recurse((), self.operands[0])
-
-        # for op_seq in self.poss_op_seqs(available_ops):
-        #     result = self.operands[0]
-
-        #     for operand, operator in zip(self.operands[1:], op_seq):
-        #         if result > self.test_val:
-        #             break
-
-        #         result = operator.apply(result, operand)
-        #     else:
-        #         if result == self.test_val:
-        #             yield op_seq
-
+        
     def has_valid_op_seq(self, available_ops: list[Operator]) -> bool:
         return next(self.valid_op_seqs(available_ops), None) is not None
 
-def parse(ip: str) -> Iterator[Equation]:
+def parse(ip: str) -> Generator[Equation]:
     for line in ip.splitlines():
         test_val_s, operands_s = line.split(':')
         test_val = int(test_val_s.strip())
@@ -156,7 +122,7 @@ def parse(ip: str) -> Iterator[Equation]:
 
 P1_OPS = [Operator.ADD, Operator.MUL]
 
-def valid_op_seqs(ip: str) -> Iterator[list[tuple[Operator, ...]]]:
+def valid_op_seqs(ip: str) -> Generator[list[tuple[Operator, ...]]]:
     for equation in parse(ip):
         yield list(equation.valid_op_seqs(P1_OPS))
 
@@ -174,7 +140,7 @@ def p1(ip: str) -> int:
 
 P2_OPS = [Operator.ADD, Operator.MUL, Operator.CAT]
 
-def p2_valid_op_seqs(ip: str) -> Iterator[list[tuple[Operator, ...]]]:
+def p2_valid_op_seqs(ip: str) -> Generator[list[tuple[Operator, ...]]]:
     for equation in parse(ip):
         yield list(equation.valid_op_seqs(P2_OPS))
 
