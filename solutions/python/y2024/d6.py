@@ -153,46 +153,9 @@ def p1(ip: str) -> int:
     grid, start = parse(ip)
     return len({pos for pos, _ in guard_path(grid, start)})
 
-SUCCESSORS: defaultdict[tuple[Grid, Node], set[gint]] = defaultdict(set)
-
-def get_successors(grid: Grid, start: Node) -> set:
-    global SUCCESSORS
-    print(f'get_successors {start}', end=' ')
-    result: defaultdict[Node, set[gint]] = defaultdict(set)
-    seen: set[Node] = set()
-
-    for node in get_path(grid, start):
-        if (grid, node) in SUCCESSORS:
-            cached_successors = SUCCESSORS[grid, node]
-            print('CACHE HIT!', cached_successors)
-
-            for seen_node in seen:
-                result[seen_node].update(cached_successors)
-
-            break
-        else:
-            print('CACHE MISS!')
-
-            if node in seen:
-                print(f'  {node}  IN SEEN')
-                break
-
-            print(f' {node} NOT IN SEEN')
-            seen.add(node)
-
-            for seen_node in seen:
-                result[seen_node].add(node[0])
-
-    resultdict = dict(result)
-
-    for node, succs in result.items():
-        SUCCESSORS[grid, node] |= succs
-
-    return result[start]
-
 def cyclic_guard_paths(
     grid: Grid, orig_guard_pos: gint
-) -> Iterator[tuple[gint, dict[gint, set[gint]], tuple[gint, gint] | None]]:
+) -> Iterator[tuple[gint, dict[gint, set[gint]]]]:
 
     poss_cycle_pos_set = {pos for pos, _ in guard_path(grid, orig_guard_pos)}
 
@@ -201,38 +164,19 @@ def cyclic_guard_paths(
         modified_grid[poss_cycle_pos] = '#'
 
         seen: dict[gint, set[gint]] = defaultdict(set)
-        exit_info: tuple[gint, dict[gint, set[gint]], tuple[gint, gint]] | None = None
 
         for guard_pos, guard_dir in guard_path(modified_grid, orig_guard_pos):
             if guard_dir in seen[guard_pos]:
-                yield poss_cycle_pos, seen, None
+                yield poss_cycle_pos, seen
                 break
             else:
                 seen[guard_pos].add(guard_dir)
 
-            if (
-                exit_info is None
-                # yeah these two conditions are necessary
-                # unless.. we make facing_map cover ALL nodes
-                # and guard_pos in unobstructed_seen
-                # and guard_dir in unobstructed_seen[guard_pos]
-                and poss_cycle_pos not in get_successors(grid, (guard_pos, guard_dir))
-            ):
-                exit_info = poss_cycle_pos, seen, (guard_pos, guard_dir)
-                break
-
 def cycle_pic(
-    grid: Grid, guard_pos: gint, cycle_pos: gint, seen: dict[gint, set[gint]],
-    early_exit: tuple[gint, gint] | None=None
+    grid: Grid, guard_pos: gint, cycle_pos: gint, seen: dict[gint, set[gint]]
 ) -> str:
     
     def pos_pic(pos: gint) -> str:
-        if early_exit is not None and pos == early_exit[0]:
-            return {
-                gint(0, -1): 'U', gint(0, 1): 'D',
-                gint(-1, 0): 'L', gint(1, 0): 'R'
-            }[early_exit[1]]
-
         if pos == guard_pos:
             return '^'
 
@@ -258,10 +202,8 @@ def cycle_pos_pics(ip: str) -> str:
     grid, guard_pos = parse(ip)
     pics: dict[gint, str] = {}
 
-    for cycle_pos, seen, early_exit in cyclic_guard_paths(grid, guard_pos):
-        pics[cycle_pos] = cycle_pic(
-            grid, guard_pos, cycle_pos, seen, early_exit
-        )
+    for cycle_pos, seen in cyclic_guard_paths(grid, guard_pos):
+        pics[cycle_pos] = cycle_pic(grid, guard_pos, cycle_pos, seen)
 
     cycle_pos_list = sorted(pics.keys(), key=lambda pos: (pos.imag, pos.real))
     return '\n\n'.join(pics[pos] for pos in cycle_pos_list)
@@ -269,7 +211,7 @@ def cycle_pos_pics(ip: str) -> str:
 def p2(ip: str) -> int:
     grid, orig_guard_pos = parse(ip)
     return len({
-        cycle_pos for cycle_pos, _, _
+        cycle_pos for cycle_pos, _
         in cyclic_guard_paths(grid, orig_guard_pos)
     })
     
