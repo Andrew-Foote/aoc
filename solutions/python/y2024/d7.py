@@ -16,16 +16,17 @@ test_inputs = [
 21037: 9 7 18 13
 292: 11 6 16 20
 ''', [
-        ('valid_op_seqs_csv', '*|+,*;*,+|||||||+,*,+'),
+        ('valid_op_seqs_csv', '*#+,*;*,+#######+,*,+'),
         ('p1', 3749),
-        ('p2', 0)
+        ('p2_valid_op_seqs_csv', '*#+,*;*,+##|#*,|,*##|,+##+,*,+'),
+        ('p2', 11387)
     ]),
 ]
-
 
 class Operator(Enum):
     ADD = 0
     MUL = 1
+    CAT = 2
 
     def __str__(self) -> str:
         match self:
@@ -33,6 +34,8 @@ class Operator(Enum):
                 return '+'
             case Operator.MUL:
                 return '*'
+            case Operator.CAT:
+                return '|'
             case _:
                 assert_never(self)
 
@@ -42,6 +45,8 @@ class Operator(Enum):
                 return a + b
             case Operator.MUL:
                 return a * b
+            case Operator.CAT:
+                return int(str(a) + str(b))
             case _:
                 assert_never(self)
 
@@ -49,6 +54,12 @@ class Operator(Enum):
 class Equation:
     test_val: int
     operands: list[int]
+    
+    def poss_op_seqs(
+        self, available_ops: list[Operator]
+    ) -> Iterator[tuple[Operator, ...]]:
+    
+        return it.product(available_ops, repeat=len(self.operands) - 1)
 
     def op_seq_result(self, op_seq: tuple[Operator, ...]) -> int:
         assert len(op_seq) == len(self.operands) - 1
@@ -62,16 +73,16 @@ class Equation:
     def op_seq_is_valid(self, op_seq: tuple[Operator, ...]) -> bool:
         return self.op_seq_result(op_seq) == self.test_val
 
-    def valid_op_seqs(self) -> set[tuple[Operator, ...]]:
-        poss_op_seqs = it.product(Operator, repeat=len(self.operands) - 1)
-        result: set[tuple[Operator, ...]] = set()
-
-        for op_seq in poss_op_seqs:
+    def valid_op_seqs(
+        self, available_ops: list[Operator]
+    ) -> Iterator[tuple[Operator, ...]]:
+    
+        for op_seq in self.poss_op_seqs(available_ops):
             if self.op_seq_is_valid(op_seq):
-                result.add(op_seq)
+                yield op_seq
 
-        return result
-
+    def has_valid_op_seq(self, available_ops: list[Operator]) -> bool:
+        return next(self.valid_op_seqs(available_ops), None) is not None
 
 def parse(ip: str) -> Iterator[Equation]:
     for line in ip.splitlines():
@@ -80,12 +91,14 @@ def parse(ip: str) -> Iterator[Equation]:
         operands = list(map(int, operands_s.split()))
         yield Equation(test_val, operands)
 
+P1_OPS = [Operator.ADD, Operator.MUL]
+
 def valid_op_seqs(ip: str) -> Iterator[list[tuple[Operator, ...]]]:
     for equation in parse(ip):
-        yield equation.valid_op_seqs()
+        yield list(equation.valid_op_seqs(P1_OPS))
 
 def valid_op_seqs_csv(ip: str) -> str:
-    return '|'.join(
+    return '#'.join(
         ';'.join(','.join(map(str, op_seq)) for op_seq in op_seq_set)
         for op_seq_set in valid_op_seqs(ip)
     )
@@ -93,5 +106,23 @@ def valid_op_seqs_csv(ip: str) -> str:
 def p1(ip: str) -> int:
     return sum(
         equation.test_val for equation in parse(ip)
-        if equation.valid_op_seqs()
+        if equation.has_valid_op_seq(P1_OPS)
+    )
+
+P2_OPS = [Operator.ADD, Operator.MUL, Operator.CAT]
+
+def p2_valid_op_seqs(ip: str) -> Iterator[list[tuple[Operator, ...]]]:
+    for equation in parse(ip):
+        yield list(equation.valid_op_seqs(P2_OPS))
+
+def p2_valid_op_seqs_csv(ip: str) -> str:
+    return '#'.join(
+        ';'.join(','.join(map(str, op_seq)) for op_seq in op_seq_set)
+        for op_seq_set in p2_valid_op_seqs(ip)
+    )
+
+def p2(ip: str) -> int:
+    return sum(
+        equation.test_val for equation in parse(ip)
+        if equation.has_valid_op_seq(P2_OPS)
     )
