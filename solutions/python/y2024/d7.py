@@ -1,8 +1,10 @@
-from collections.abc import Iterator
+from collections.abc import Iterator, Generator
 from dataclasses import dataclass
 from enum import Enum
 import itertools as it
+import math
 from typing import assert_never
+from solutions.python.lib import digits
 
 test_inputs = [
     ('example', '''\
@@ -46,9 +48,36 @@ class Operator(Enum):
             case Operator.MUL:
                 return a * b
             case Operator.CAT:
-                return int(str(a) + str(b))
+                return a * 10 ** (math.floor(math.log10(b)) + 1) + b
+                return a * 10 ** digits.digit_count(b) + b
             case _:
                 assert_never(self)
+
+# Suppose a and b are positive integers.
+#
+# THEOREM 1. cmp(a + b, ab) = {
+#     1 if a = 1 or b = 1,
+#     0 if a = b = 2,
+#     -1 if a > 1 and b > 1.
+#   }.
+#
+#   PROOF.
+#     - If a = 1, then a + b = 1 + b > b = 1 * b = ab.
+#     - If b = 1, then a + b = a + 1 > a = a * 1 = ab.
+#     - If a = b, then a + b <= ab is equivalent to 2a <= a^2, i.e.
+#       a^2 - 2a >= 0, i.e. a(a - 2) >= 0; the quadratic polynomial on the LHS
+#       has roots 0 and 2, and the sign of its leading coefficient is positive,
+#       so it exceeds 0 iff a < 0 or a > 2. So given that a is a positive
+#       integer, we have 2a <= a^2 when a = 2, and 2a < a^2 otherwise.
+#     - If a > 1, b > 1 and a != b, then, assuming WLOG that a < b, we have
+#       a + b < 2b. We also have 2b <= ab, since 2 <= a; hence a + b < ab.
+#
+# THEOREM 2. cmp(ab, a | b) = -1.
+#
+# PROOF. We can write a | b as a * 10^(n + 1) + b, where
+# n = floor(log10(b)), i.e. n is the unique integer satisfying
+# n <= log10(b) < n + 1. So 10^n <= b < 10^(n + 1) and hence
+# ab < a * 10^(n + 1) < a * 10^(n + 1) + b = a | b.
 
 @dataclass
 class Equation:
@@ -59,7 +88,7 @@ class Equation:
         self, available_ops: list[Operator]
     ) -> Iterator[tuple[Operator, ...]]:
     
-        return it.product(available_ops, repeat=len(self.operands) - 1)
+        return it.product(available_ops, repeat=len(self.operands) - 1)        
 
     def op_seq_result(self, op_seq: tuple[Operator, ...]) -> int:
         assert len(op_seq) == len(self.operands) - 1
@@ -72,14 +101,48 @@ class Equation:
 
     def op_seq_is_valid(self, op_seq: tuple[Operator, ...]) -> bool:
         return self.op_seq_result(op_seq) == self.test_val
-
+        
     def valid_op_seqs(
         self, available_ops: list[Operator]
     ) -> Iterator[tuple[Operator, ...]]:
-    
-        for op_seq in self.poss_op_seqs(available_ops):
-            if self.op_seq_is_valid(op_seq):
-                yield op_seq
+        
+        # print(f'{self}.valid_op_seqs({available_ops})')
+        
+        seq_len = len(self.operands) - 1
+
+        def recurse(
+            prefix: tuple[Operator, ...], result: int
+        ) -> Iterator[tuple[Operator, ...]]:
+            
+            #print(f'  recurse({prefix}, {result})')
+                        
+            if result > self.test_val:
+                return
+
+            if len(prefix) == seq_len:
+                if result == self.test_val:
+                    yield prefix
+
+                return
+
+            for op in available_ops:
+                ext_prefix = prefix + (op,)
+                ext_result = op.apply(result, self.operands[len(ext_prefix)])
+                yield from recurse(ext_prefix, ext_result)
+
+        yield from recurse((), self.operands[0])
+
+        # for op_seq in self.poss_op_seqs(available_ops):
+        #     result = self.operands[0]
+
+        #     for operand, operator in zip(self.operands[1:], op_seq):
+        #         if result > self.test_val:
+        #             break
+
+        #         result = operator.apply(result, operand)
+        #     else:
+        #         if result == self.test_val:
+        #             yield op_seq
 
     def has_valid_op_seq(self, available_ops: list[Operator]) -> bool:
         return next(self.valid_op_seqs(available_ops), None) is not None
