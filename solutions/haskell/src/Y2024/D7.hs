@@ -11,10 +11,7 @@ import qualified Data.Text as T
 
 import AOC (Sol(..), Test(..))
 
-data Op
-    = Add
-    | Mul
-    | Cat
+data Op = Add | Mul | Cat
 
 data Eqn = Eqn
     { eqnTestVal  :: Integer
@@ -24,14 +21,8 @@ data Eqn = Eqn
 parseEqn :: Text -> Eqn
 parseEqn eqn = eqn & splitOn ":" & (\case
     [testValS, operandsS] -> Eqn
-        { eqnTestVal  = testValS
-            & unpack
-            & read
-        , eqnOperands = operandsS
-            & T.words
-            <&> unpack
-            <&> read
-            & NEL.fromList
+        { eqnTestVal  = testValS & unpack & read
+        , eqnOperands = operandsS & T.words <&> unpack <&> read & NEL.fromList
         }
     _ -> error $ "Invalid equation '" ++ show eqn ++ "'")
 
@@ -58,9 +49,7 @@ hasSatisfiableTestVal availOps (Eqn testVal operands) =
 
 sumSatisfiableTestVals :: [Op] -> [Eqn] -> Integer
 sumSatisfiableTestVals availOps = 
-    filter (hasSatisfiableTestVal availOps)
-    >>> map eqnTestVal
-    >>> sum
+    filter (hasSatisfiableTestVal availOps) >>> map eqnTestVal >>> sum
 
 p1 :: String -> String
 p1 = parse >>> sumSatisfiableTestVals [Add, Mul] >>> show
