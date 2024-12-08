@@ -22,21 +22,14 @@ def p2(ip: str) -> int:
     result = 0
 
     for l, r, do, dont in re.findall(pat, ip):
-        is_mul = l or r
-        is_do = do == 'do'
-        is_dont = dont == "don't"
-        assert not (is_mul and is_do)
-        assert not (is_mul and is_dont)
-        assert not (is_do and is_dont)
-
-        if is_mul:
-            if enabled:
-                result += int(l) * int(r)
-        elif is_do:
-            enabled = True
-        elif is_dont:
-            enabled = False
-        else:
-            assert False
+        match l, r, do, dont:
+            case (l, r, '', ''):
+                result += int(l) * int(r) * enabled
+            case ('', '', "do", ''):
+                enabled = True
+            case ('', '', '', "don't"):
+                enabled = False
+            case _:
+                assert False
 
     return result
