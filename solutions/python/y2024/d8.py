@@ -37,7 +37,7 @@ test_inputs = [
 ..........#.
 ..........#.'''),
         ('p1', 14),
-        ('p2', 0)
+        ('p2', 34)
     ]),
 ]
 
@@ -91,4 +91,39 @@ def p1(ip: str) -> int:
     return len(antinode_locs)
 
 def p2(ip: str) -> int:
-    return 0
+    width, height, grid = parse(ip)
+    freq_to_points: defaultdict[str, set[gint]] = defaultdict(set)
+
+    for point, freq in grid.items():
+        if freq != '.':
+            freq_to_points[freq].add(point)
+
+    antinode_locs: set[gint] = set()
+
+    for freq, points in freq_to_points.items():
+        points_l = list(points)
+
+        def inbounds(p: gint) -> bool:
+            return 0 <= p.real < width and 0 <= p.imag < height
+
+        for i, p1 in enumerate(points_l):
+            for p2 in points_l[i + 1:]:
+                disp = p2 - p1
+                an0 = p1
+                an1 = p2
+
+                # if an0 == an1:
+                #     antinode_locs.append(p1)
+                #     continue
+
+                while inbounds(an0) or inbounds(an1):
+                    if inbounds(an0):
+                        antinode_locs.add(an0)
+
+                    if inbounds(an1):
+                        antinode_locs.add(an1)
+
+                    an0 -= disp
+                    an1 += disp
+
+    return len(antinode_locs)
