@@ -1,15 +1,19 @@
-.vscode
-
-__pycache__
-*.pyc
-.mypy_cache
-env
 settings.toml
 *.log
 db.sqlite
 input
 *.lprof
 *.prof
+
+# editor
+.vscode
+
+# python
+env
+__pycache__
+*.pyc
+.mypy_cache
+.hypothesis
 
 # haskell
 dist-newstyle

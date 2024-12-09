@@ -187,9 +187,8 @@ def p1(ip: str) -> int:
 def p2(ip: str) -> int:
 	base_grid = parse_to_grid(ip)
 
-	grid = g.DefaultGrid(
-		lambda z: base_grid[z.real % base_grid.width, z.imag % base_grid.height],
-		base_grid
-	)
+	grid = g.DefaultGrid(lambda z: base_grid[
+		gint(z.real % base_grid.width, z.imag % base_grid.height)
+	], base_grid)
 
 	

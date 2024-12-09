@@ -56,7 +56,7 @@ class Polynomial:
         return 0 if degree > self.degree() else self.coeffs[degree]
 
     def __call__(self: Self, x: complex) -> complex:
-        result = 0
+        result: complex = 0
 
         for coeff in reversed(self.coeffs):
             result *= x
@@ -128,7 +128,10 @@ class Polynomial:
     def __rtruediv__(self: Self, other: Self | int) -> 'RationalFunction':
         return RationalFunction(other, self)
 
-    def __eq__(self: Self, other: Self | int) -> bool:
+    def __eq__(self: Self, other: object) -> bool:
+        if not isinstance(other, (self.__class__, int)):
+            return NotImplemented
+        
         return not self - other
 
     def roots(self: Self) -> frozenset[complex]:
@@ -175,7 +178,7 @@ class RationalFunction:
     def __str__(self: Self) -> str:
         if self.numerator == 0: return '0'
         numerator_string = str(self.numerator)
-        if self.denominator == 1: return self.numerator_string
+        if self.denominator == 1: return numerator_string
         denominator_string = str(self.denominator)
         if len(self.numerator) > 1: numerator_string = f'({numerator_string})'
         if len(self.denominator) > 1: denominator_string = f'({denominator_string})'
@@ -216,8 +219,11 @@ class RationalFunction:
     def __sub__(self: Self, other: Self | int) -> Self:
         return self + (-other)
 
-    def __eq__(self: Self, other: Self | int) -> bool:
+    def __eq__(self: Self, other: object) -> bool:
+        if not isinstance(other, (self.__class__, int)):
+            return NotImplemented
+
         return not self - other
 
     def roots(self: Self) -> frozenset[complex]:
-        return roots(self.numerator) - roots(self.denominator)
+        return self.numerator.roots() - self.denominator.roots()

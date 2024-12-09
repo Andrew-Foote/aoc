@@ -2,7 +2,7 @@ from collections.abc import Iterator
 from collections import Counter
 from dataclasses import dataclass
 from enum import Enum
-from typing import Literal, Self
+from typing import cast, Literal, Self
 
 test_inputs = [
     (

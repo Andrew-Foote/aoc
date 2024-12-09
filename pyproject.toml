@@ -30,6 +30,7 @@ Issues = "https://github.com/Andrew-Foote/aoc/issues"
 
 [project.optional-dependencies]
 dev = [
+    "hypothesis",
     "mypy",
     "pytest",
     "scipy-stubs",
