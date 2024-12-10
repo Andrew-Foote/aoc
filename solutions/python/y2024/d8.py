@@ -1,12 +1,6 @@
-from collections.abc import Generator
 from collections import defaultdict
-from dataclasses import dataclass
-from enum import Enum
-import functools as ft
-import itertools as it
-import math
-from typing import assert_never, Self
 from solutions.python.lib.gint import gint
+from solutions.python.lib.grid import Grid
 
 test_inputs = [
     ('example', '''\
@@ -41,19 +35,8 @@ test_inputs = [
     ]),
 ]
 
-def parse(ip: str) -> tuple[int, int, dict[gint, str]]:
-    result = {}
-    lines = ip.splitlines()
-
-    for i, line in enumerate(lines):
-        for j, col in enumerate(line):
-            # a lowercase letter, uppercase letter or digit
-            # this is the frequency
-            result[gint(j, i)] = col
-
-    h = len(lines)
-    w = len(lines[0])
-    return w, h, result
+def parse(ip: str) -> Grid:
+    return Grid(ip.splitlines())
 
 # for any two cells with the same frequency, we draw a line
 # between them, then extend by the same length each side
@@ -61,23 +44,27 @@ def parse(ip: str) -> tuple[int, int, dict[gint, str]]:
 # antinodes can be on the same place as a cell with a freq
 # antinodes are marked with '#' in the answers
 
-def p1(ip: str) -> int:
-    # we need to count number of locations that contain
-    # an antinode
-    width, height, grid = parse(ip)
-    freq_to_points: defaultdict[str, set[gint]] = defaultdict(set)
+def map_freq_to_points(grid: Grid) -> dict[str, list[gint]]:
+    result: defaultdict[str, list[gint]] = defaultdict(list)
 
-    for point, freq in grid.items():
+    for point in grid.rect():
+        freq = grid[point]
+
         if freq != '.':
-            freq_to_points[freq].add(point)
+            result[freq].append(point)
 
+    return dict(result)
+
+def p1(ip: str) -> int:
+    grid = parse(ip)
+    width = grid.width
+    height = grid.height
+    freq_to_points = map_freq_to_points(grid)
     antinode_locs: set[gint] = set()
 
-    for freq, points in freq_to_points.items():
-        points_l = list(points)
-
-        for i, p1 in enumerate(points_l):
-            for p2 in points_l[i + 1:]:
+    for _, points in freq_to_points.items():
+        for i, p1 in enumerate(points):
+            for p2 in points[i + 1:]:
                 disp = p2 - p1
                 an0 = p1 - disp
                 an1 = p2 + disp
@@ -91,36 +78,24 @@ def p1(ip: str) -> int:
     return len(antinode_locs)
 
 def p2(ip: str) -> int:
-    width, height, grid = parse(ip)
-    freq_to_points: defaultdict[str, set[gint]] = defaultdict(set)
-
-    for point, freq in grid.items():
-        if freq != '.':
-            freq_to_points[freq].add(point)
-
+    grid = parse(ip)
+    width = grid.width
+    height = grid.height
+    freq_to_points = map_freq_to_points(grid)
     antinode_locs: set[gint] = set()
 
-    for freq, points in freq_to_points.items():
-        points_l = list(points)
-
-        def inbounds(p: gint) -> bool:
-            return 0 <= p.real < width and 0 <= p.imag < height
-
-        for i, p1 in enumerate(points_l):
-            for p2 in points_l[i + 1:]:
+    for _, points in freq_to_points.items():
+        for i, p1 in enumerate(points):
+            for p2 in points[i + 1:]:
                 disp = p2 - p1
                 an0 = p1
                 an1 = p2
 
-                # if an0 == an1:
-                #     antinode_locs.append(p1)
-                #     continue
-
-                while inbounds(an0) or inbounds(an1):
-                    if inbounds(an0):
+                while an0 in grid or an1 in grid:
+                    if an0 in grid:
                         antinode_locs.add(an0)
 
-                    if inbounds(an1):
+                    if an1 in grid:
                         antinode_locs.add(an1)
 
                     an0 -= disp
