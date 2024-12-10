@@ -1,12 +1,7 @@
 from collections.abc import Generator
-from collections import defaultdict, deque
 from dataclasses import dataclass
-from enum import Enum
-import functools as ft
 import itertools as it
-import math
-from typing import assert_never, Self
-from solutions.python.lib.gint import gint
+from typing import assert_never
 
 test_inputs = [
     ('example', '2333133121414131402', [
@@ -152,14 +147,16 @@ def p2_parse(ip: str) -> Generator[File]:
 
         yield File(id_, size, padding)
 
+# Maybe could be made more efficient using linked lists but it actually only
+# takes around 5 seconds
 def p2_states(ip: str) -> Generator[list[File]]:
     files = list(p2_parse(ip))
     yield files
-    print()
+    # print()
     
     for file_id, file in reversed(list(enumerate(files[1:], start=1))):
-        print(f'OUTER LOOP ITERATION BEGIN file_id={file_id}, file={file}')
-        print(f'  CUR STATE: {state_pic(files)}')
+        # print(f'OUTER LOOP ITERATION BEGIN file_id={file_id}, file={file}')
+        # print(f'  CUR STATE: {state_pic(files)}')
         i = 0
 
         for i, file in enumerate(files):
@@ -206,11 +203,12 @@ def p2(ip: str) -> int:
     pos = 0
 
     for file in state:
-        for _ in range(file.size):
-            print(f'+ {file.id} * {pos}')
-            result += file.id * pos
-            pos += 1
-
-        pos += file.padding
+        #   file.id * pos
+        # + file.id * (pos + 1)
+        # + ...
+        # + file.id * (pos + file.size - 1)
+        # = file.id * file.size * (2 * pos + file.size - 1) / 2
+        result += file.id * file.size * (2 * pos + file.size - 1) // 2
+        pos += file.size + file.padding
 
     return result
