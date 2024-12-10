@@ -388,6 +388,7 @@ class Path:
                 yield p
 
 T = TypeVar('T')
+U = TypeVar('U')
 
 @dataclass
 class Grid(Generic[T]):
@@ -408,6 +409,12 @@ class Grid(Generic[T]):
             raise ValueError('rows are not all same length')
 
         self.origin = origin
+
+    def map(self, cb: Callable[[T], U]) -> 'Grid[U]':
+        return Grid(
+            [[cb(col) for col in row] for row in self.rows],
+            self.origin
+        )
 
     def copy(self) -> Self:
         return self.__class__([row.copy() for row in self.rows], self.origin)
