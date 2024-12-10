@@ -26,6 +26,13 @@ test_inputs = [
 00998111888277733364465555.66.............
 0099811188827773336446555566..............'''),
         ('p1', 1928),
+        ('p2_state_pics', '''\
+00...111...2...333.44.5555.6666.777.888899
+0099.111...2...333.44.5555.6666.777.8888..
+0099.1117772...333.44.5555.6666.....8888..
+0099.111777244.333....5555.6666.....8888..
+00992111777.44.333....5555.6666.....8888..'''),
+        ('p2', 2858),
     ]),
     ('example2', '12345', [
         ('blocks_s', '0..111....22222'),   
@@ -35,7 +42,7 @@ test_inputs = [
 022111....222..
 0221112...22...
 02211122..2....
-022111222......'''),     
+022111222......'''),    
     ]),
 ]
 
@@ -74,8 +81,13 @@ def states(ip: str) -> Generator[list[Block]]:
     blocks = list(iterblocks(ip))
     yield blocks
 
-    free_block_indices = list(reversed([i for i, block in enumerate(blocks) if isinstance(block, FreeBlock)]))
-    file_block_indices = [i for i, block in enumerate(blocks) if isinstance(block, FileBlock)]
+    free_block_indices = list(reversed([
+        i for i, block in enumerate(blocks) if isinstance(block, FreeBlock)
+    ]))
+    
+    file_block_indices = [
+        i for i, block in enumerate(blocks) if isinstance(block, FileBlock)
+    ]
 
     while file_block_indices:
         first_free_block_index = free_block_indices.pop()
@@ -109,5 +121,96 @@ def p1(ip: str) -> int:
                 pass
             case _:
                 assert_never(block)
+
+    return result
+
+@dataclass(frozen=True)
+class File:
+    id: int
+    size: int
+    padding: int # specificially right-padding
+
+def state_pic(state: list[File]) -> str:
+    result_chars: list[str] = []
+
+    for file in state:
+        result_chars.append(str(file.id) * file.size + '.' * file.padding)
+
+    return ''.join(result_chars)
+
+def p2_parse(ip: str) -> Generator[File]:
+    for id_, batch in enumerate(it.batched(ip.strip(), 2)):
+        match batch:
+            case (size_s, padding_s):
+                size = int(size_s.strip())
+                padding = int(padding_s.strip())
+            case (size_s,):
+                size = int(size_s.strip())
+                padding = 0
+            case _:
+                assert False
+
+        yield File(id_, size, padding)
+
+def p2_states(ip: str) -> Generator[list[File]]:
+    files = list(p2_parse(ip))
+    yield files
+    print()
+    
+    for file_id, file in reversed(list(enumerate(files[1:], start=1))):
+        print(f'OUTER LOOP ITERATION BEGIN file_id={file_id}, file={file}')
+        print(f'  CUR STATE: {state_pic(files)}')
+        i = 0
+
+        for i, file in enumerate(files):
+            if file.id == file_id:#
+                break
+
+        # print(f'  FILE FOUND AT INDEX {i}')
+
+        size = file.size
+        file_before = files[i - 1]
+        
+        # print(f'  SIZE = {size}, FILE_BEFORE = {file_before}')
+        
+        for j, new_file_before in enumerate(files[:i]):
+            # print(f'  CONSIDERING {new_file_before} AT {j}')
+
+            space = new_file_before.padding
+
+            if size <= space:
+                # print(f'  FIT POSSIBLE!!!')
+
+                files[i - 1:i + 1] = [File(
+                    file_before.id,
+                    file_before.size,
+                    file_before.padding + size + file.padding
+                )]
+
+                files[j:j + 1] = [
+                    File(new_file_before.id, new_file_before.size, 0),
+                    File(file.id, size, space - size)
+                ]
+
+                yield files
+                break
+
+def p2_state_pics(ip: str) -> str:
+    return '\n'.join(state_pic(state) for state in p2_states(ip))
+
+def p2(ip: str) -> int:
+    for state in p2_states(ip):
+        pass
+    
+    result = 0
+    pos = 0
+
+    for file in state:
+        for _ in range(file.size):
+            print(f'+ {file.id} * {pos}')
+            result += file.id * pos
+            pos += 1
+
+        pos += file.padding
 
     return result
