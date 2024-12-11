@@ -128,30 +128,13 @@ def adj_matrix(graph: set[tuple[gint, gint]], start: gint) -> tuple[sparse.csr_a
 
 	return m, start_index
 
-def step(m: sparse.csr_array, count: int) -> sparse.csr_array:
-	# apparently scipy doesn't have a matrix power function for sparse arrays;
-	# m ** count does it element-wise. so we implement exponentiation by
-	# squaring here
-
-	if count == 0:
-		return sparse.csr_array(sparse.eye(m.shape[0]))
-
-	q, r = divmod(count, 2)
-	m_to_q = step(m, q)
-	result = m_to_q @ m_to_q
-
-	if r:
-		result @= m
-
-	return result
-
 def step_pic(ip: str, count: int) -> str:
 	grid = parse_to_grid(ip)
 	graph, start = parse_to_graph(grid)
 	nodes = node_list(graph)
 	point_to_index_map = {z: i for i, z in enumerate(nodes)}
 	m, start_index = adj_matrix(graph, start)
-	m = step(m, count)
+	m = sparse.linalg.matrix_power(m, count)
 
 	def picmaker(z: gint) -> str:
 		if z not in point_to_index_map:
@@ -198,4 +181,5 @@ def p2(ip: str) -> int:
 	], base_grid)
 
 
-	
+	# basically it's a "chessboard" pattern
+	# given a number of steps, we may consider the subgrid
