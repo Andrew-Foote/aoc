@@ -109,23 +109,29 @@ def node_list(graph: set[tuple[gint, gint]]) -> list[gint]:
 def adj_matrix(graph: set[tuple[gint, gint]], start: gint) -> tuple[sparse.csr_array, int]:
 	nodes = node_list(graph)
 	print('NODES COUNT: ', len(nodes))
-	m = sparse.dok_array((len(nodes),) * 2, dtype=np.ubyte)
+	
+	row = []
+	col = []
+	data = []
 
-	for i, n1 in enumerate(nodes):
-		print(i)
-		for j, n2 in enumerate(nodes):
-			m[i, j] = int((n1, n2) in graph)
+	node_to_index_map = {n: i for i, n in enumerate(nodes)}
+	start_index = node_to_index_map[start]
 
-		if n1 == start:
-			start_index = i
+	for i, (n1, n2) in enumerate(graph):
+		row.append(node_to_index_map[n1])
+		col.append(node_to_index_map[n2])
+		data.append(1)
 
-	# this is still very slow :(
+	m = sparse.csr_array(
+		(data, (row, col)), shape=(len(nodes),) * 2, dtype=np.ubyte
+	)
 
-	return m.tocsr(), start_index
+	return m, start_index
 
 def step(m: sparse.dok_array, count: int) -> sparse.csr_array:
 	# apparently scipy doesn't have a matrix power function for sparse arrays;
-	# m ** count does it element-wise
+	# m ** count does it element-wise. so we implement exponentiation by
+	# squaring here
 
 	if count == 0:
 		return sparse.csr_array(sparse.eye(m.shape[0]))
@@ -191,4 +197,5 @@ def p2(ip: str) -> int:
 		gint(z.real % base_grid.width, z.imag % base_grid.height)
 	], base_grid)
 
+	
 	

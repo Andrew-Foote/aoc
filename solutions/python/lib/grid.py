@@ -390,6 +390,8 @@ class Path:
 T = TypeVar('T')
 U = TypeVar('U')
 
+# think i should maybe stop using this, as it's not really a useful
+# abstraction
 @dataclass
 class Grid(Generic[T]):
     rows: list[list[T]]
@@ -409,6 +411,16 @@ class Grid(Generic[T]):
             raise ValueError('rows are not all same length')
 
         self.origin = origin
+
+    @classmethod
+    def parse(
+        self, rows: Iterable[Iterable[U]], cb: Callable[[gint, U], T]
+    ) -> 'Grid[T]':
+        
+        return Grid(
+            (cb(gint(x, y), cell) for x, cell in enumerate(row))
+            for y, row in enumerate(rows)
+        )
 
     def map(self, cb: Callable[[T], U]) -> 'Grid[U]':
         return Grid(
@@ -447,7 +459,10 @@ class Grid(Generic[T]):
         )
 
     def __getitem__(self, p: gint) -> T:
-        return self.rows[p.imag - self.origin.imag][p.real - self.origin.real]
+        try:
+            return self.rows[p.imag - self.origin.imag][p.real - self.origin.real]
+        except IndexError:
+            raise KeyError(p)
 
     def __setitem__(self, p: gint, v: T) -> None:
         self.rows[p.imag - self.origin.imag][p.real - self.origin.real] = v

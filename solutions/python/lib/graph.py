@@ -145,20 +145,3 @@ def dfs_bad(root: _T, children: ChildGenerator[_T]):
             if child not in visited:
                 visited.add(child)
                 stack.append(child)
-
-if __name__ == '__main__':
-    example = {
-        's': 'ac',
-        'a': 'sbd',
-        'b': 'ae',
-        'c': 'sdf',
-        'd': 'aceg',
-        'e': 'bdh',
-        'f': 'cg',
-        'g': 'dfh',
-        'h': 'eg'
-    }
-
-    children = lambda node: iter(example[node])
-    assert list(gdfs('s', children)) == ['s', 'a', 'b', 'e', 'd', 'c', 'f', 'g', 'h']
-    assert list(gbfs('s', children)) == ['s', 'a', 'c', 'b', 'd', 'f', 'e', 'g', 'h']

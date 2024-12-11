@@ -1,6 +1,5 @@
 from collections import defaultdict
 from collections.abc import Iterator
-import functools as ft
 from solutions.python.lib.gint import gint
 from solutions.python.lib.grid import Grid
 from solutions.python.lib import grid as g
