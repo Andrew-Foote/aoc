@@ -3,11 +3,7 @@ from collections import Counter
 import math
 
 test_inputs = [
-    ('example', '0 1 10 99 999', [
-        ('state_1_pic', '1 2024 1 0 9 9 2021976'),
-    ]),
-    ('example2', '125 17', [
-        ('state_1_pic', '253000 1 7'),
+    ('example', '125 17', [
         ('stone_count_6', 22),
         ('p1', 55312)
     ])
@@ -16,7 +12,7 @@ test_inputs = [
 def parse(ip: str) -> Counter[int]:
     return Counter(map(int, ip.split()))
 
-def transform(stones: Counter[int]) -> list[int]:
+def transform(stones: Counter[int]) -> Counter[int]:
     new_stones: Counter[int] = Counter()
 
     for stone, count in stones.items():
@@ -40,8 +36,6 @@ def states(stones: Counter[int]) -> Generator[Counter[int]]:
     yield stones
 
     while True:
-        # print(stones)
-        # input()
         stones = transform(stones)
         yield stones
 
@@ -49,9 +43,8 @@ def state_n(stones: Counter[int], n: int) -> Counter[int]:
     for i, stones in enumerate(states(stones)):
         if i == n:
             return stones
-
-def state_1_pic(ip: str) -> str:
-    return ' '.join(map(str, state_n(parse(ip), 1)))
+        
+    assert False, "states(stones) is an infinite generator"
 
 def stone_count_n(stones: Counter[int], n: int) -> int:
     return state_n(stones, n).total()
