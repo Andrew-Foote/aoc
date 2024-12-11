@@ -128,7 +128,7 @@ def adj_matrix(graph: set[tuple[gint, gint]], start: gint) -> tuple[sparse.csr_a
 
 	return m, start_index
 
-def step(m: sparse.dok_array, count: int) -> sparse.csr_array:
+def step(m: sparse.csr_array, count: int) -> sparse.csr_array:
 	# apparently scipy doesn't have a matrix power function for sparse arrays;
 	# m ** count does it element-wise. so we implement exponentiation by
 	# squaring here
@@ -172,7 +172,7 @@ def step_pic(ip: str, count: int) -> str:
 	print()
 	return p
 
-def step_count(ip: str, count: int) -> str:
+def step_count(ip: str, count: int) -> int:
 	grid = parse_to_grid(ip)
 	graph, start = parse_to_graph(grid)
 	nodes = node_list(graph)
@@ -197,5 +197,5 @@ def p2(ip: str) -> int:
 		gint(z.real % base_grid.width, z.imag % base_grid.height)
 	], base_grid)
 
-	
+
 	
