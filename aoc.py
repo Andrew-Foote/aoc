@@ -545,7 +545,7 @@ if __name__ == '__main__':
                         
                         print(f'  first difference at index {diff_pos}')
                         print(f'  got:      {newlineescape(answer[diff_pos:])}')
-                        print(f'  expected: {newlineescape(answer[diff_pos:])}')
+                        print(f'  expected: {newlineescape(expected_test_answer[diff_pos:])}')
             else:
                 print(f"succeeded (got '{newlineescape(answer)}' as expected)")
         else:
