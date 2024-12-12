@@ -1,5 +1,6 @@
 from collections import defaultdict
 from collections.abc import Generator
+from fractions import Fraction
 import functools as ft
 from pathlib import Path
 import pickle
@@ -158,25 +159,41 @@ def side_count(region: set[gint]) -> int:
     #   _      side count = 8
     #  |_|_    corner count = 8 only if we double-count the middle one
     #    |_|   so * should count as 2
+    #
+    # ah, but some of these corners will be counted multiple times, by different
+    # cells
+    # 
+    # ..
+    # .O will only be counted once by the O cell
+    #
+    # .#  from pov of tr # is .O = #. which counts as 1
+    # #O                      ##   #O
+    #
+    #     from pov of bl # is .# = ## which counts as 1 
+    #                         O#   .O
+    #
+    # #.  from pov of tl # is O. = .O = #. which also counts as 2
+    # .O                      .#   #.   .O
+    #
 
     n, e, s, w = NESW
     ne, se, sw, nw = NE_SE_SW_NW
     corners = [(ne, n, e), (se, s, e), (sw, s, w), (nw, n, w)]
 
     corner_map = {
-        (False, False, False): 1,
-        (False, False, True): 0,
-        (False, True, False): 0,
-        (False, True, True): 1,
-        (True, False, False): 1,
-        (True, False, True): 0,
-        (True, True, False): 0,
-        (True, True, True): 0,
+        (False, False, False): Fraction(1),
+        (False, False, True): Fraction(0),
+        (False, True, False): Fraction(0),
+        (False, True, True): Fraction(1, 3),
+        (True, False, False): Fraction(1),
+        (True, False, True): Fraction(1, 3),
+        (True, True, False): Fraction(1, 3),
+        (True, True, True): Fraction(0),
     }
  
     return sum(
-        corner_map[tuple(p + c in region for c in corner)]
-        for p in region for corner in corners
+        corner_map[p + c1 in region, p + c2 in region, p + c3 in region]
+        for p in region for c1, c2, c3 in corners
     )
 
 def areas_csv(ip: str) -> str:
