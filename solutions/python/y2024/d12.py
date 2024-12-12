@@ -168,7 +168,7 @@ def side_count(region: set[gint]) -> int:
         (False, False, True): 0,
         (False, True, False): 0,
         (False, True, True): 1,
-        (True, False, False): 2,
+        (True, False, False): 1,
         (True, False, True): 0,
         (True, True, False): 0,
         (True, True, True): 0,
