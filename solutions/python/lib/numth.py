@@ -6,8 +6,8 @@ import itertools as it
 import math
 from typing import Iterator
 
-# A simple prime generator using trial division.
 def primes_by_trial_division() -> Iterator[int]:
+	"""A simple prime generator using trial division."""
 	nums: Iterator[int] = it.count(2)
 
 	while True:
@@ -19,14 +19,6 @@ def primes_by_trial_division() -> Iterator[int]:
 		# and the iterator will see the latest value of `p` when it
 		# evaluates the condition.
 		nums = (lambda p: (n for n in nums if n % p))(p)
-
-# A prime generator using a form of the sieve of Eratosthenes, while still
-# being able to generate primes indefinitely rather than up to a particular
-# limit. This is adapted from the Haskell code on page 7 of:
-#
-# O'Neill, Melissa E. (2009). The genuine sieve of Eratosthenes. *Journal of
-# Functional Programming*, 19(1), 95--106. Currently available online at
-# https://www.cs.hmc.edu/~oneill/papers/Sieve-JFP.pdf.
 		
 @dataclass(order=True)
 class _Composite:
@@ -38,6 +30,14 @@ class _Composite:
 	successors: Iterator[int] = field(compare=False)
 
 def primes() -> Iterator[int]:
+	"""A prime generator using a form of the sieve of Eratosthenes, while still
+	being able to generate primes indefinitely rather than up to a particular
+	limit. This is adapted from the Haskell code on page 7 of:
+
+	O'Neill, Melissa E. (2009). The genuine sieve of Eratosthenes. *Journal of
+	Functional Programming*, 19(1), 95--106. Currently available online at
+	https://www.cs.hmc.edu/~oneill/papers/Sieve-JFP.pdf."""
+
 	nums: Iterator[int] = it.count(2)
 	heap: list[_Composite] = []
 
@@ -64,6 +64,9 @@ def primes() -> Iterator[int]:
 			heapq.heappush(heap, _Composite(mult, successors))
 
 def prime_factors(n: int) -> Counter[int]:
+	"""Return a `Counter` containing the prime factors of the given integer,
+	with their multiplicities as counts."""
+
 	result: Counter[int] = Counter()
 
 	while n > 1:
@@ -75,29 +78,55 @@ def prime_factors(n: int) -> Counter[int]:
 
 	return result
 
+def eea(a: int, b: int) -> tuple[int, int, int, int, int]:
+	"""Run the extended Euclidean algorithm on a and b and return
+	(d, r, s, a', b') where d = gcd(a, b), r and s are integers such that
+	ra + sb = d, a' = a /// d and b' = b // d."""
+
+	r0, r = a, b
+	s0, s = 1, 0
+	t0, t = 0, 1
+
+	while r != 0:
+		q = r0 // r
+		r0, r = r, r0 - q * r
+		s0, s = s, s0 - q * s
+		t0, t = t, t0 - q * t
+
+	return r0, s0, t0, abs(t), abs(s)
+
+def bezout_coeffs(a: int, b: int) -> tuple[int, int]:
+	"""Return integers (r, s) such that ra + sb = gcd(a, b)."""
+
+	_, s, t, _, _ = eea(a, b)
+	return s, t
+
 @dataclass(frozen=True)
-class Cong:
-	rhs: int
+class ResidueClass:
+	"""The set of all integers congruent to `residue` modulo `modulus`."""
+
+	residue: int
 	modulus: int
 
 	def __post_init__(self) -> None:
-		if self.modulus <= 0:
-			raise ValueError(
-				f'modulus is {self.modulus}, not a positive integer'
-			)
+		if self.modulus == 0:
+			raise ValueError('zero modulus')
 
-	def __str__(self) -> str:
-		return f'(x ≡ {self.rhs} mod {self.modulus})'
+	def cong_str(self) -> str:
+		return f'(x ≡ {self.residue} mod {self.modulus})'
 
 	@property
-	def normed_rhs(self) -> int:
-		return self.rhs % self.modulus
+	def norm_residue(self) -> int:
+		return self.residue % self.modulus
+
+	def __contains__(self, x: int) -> bool:
+		return x % self.modulus == self.residue
 
 	def minsol(self, lb: int) -> int:
-		"""Return the minimal solution that is greater than or equal to the
+		"""Return the minimal element that is greater than or equal to the
 		specified lower bound."""
 
-		a = self.rhs
+		a = self.residue
 		m = self.modulus
 
 		# We want a + q * m where q is the smallest integer such that
@@ -111,7 +140,7 @@ class Cong:
 		"""Return the maximal solution that is less than or equal to the
 		specified upper bound."""
 
-		a = self.rhs
+		a = self.residue
 		m = self.modulus
 
 		# We want a + q * m where q is the greatest integer such that
@@ -120,45 +149,78 @@ class Cong:
 		# math.floor((ub - a) / m).
 
 		return a + math.floor((ub - a) / m) * m
+	
+	def bound(self, start: int, stop: int) -> range:
+		"""Return a range consisting of all solutions within the given
+		bounds."""
+		
+		return range(self.minsol(start), stop, self.modulus)
 
-def display_congs(congs: list[Cong]) -> str:
-	return '\n'.join(
-		f'x ≡ {cong.rhs}  (mod {cong.modulus})' for cong in congs
-	)
+def solve_lincong(a: int, b: int, m: int) -> ResidueClass | None:
+	"""Solve the linear congruence ax = b (mod m), returning either a
+	`ResidueClass` object representing the set of all solutions, or `None` if
+	there are no solutions."""
 
-def euclid(a: int, b: int) -> tuple[int, int, int, int, int]:
-	r0, r = a, b
-	s0, s = 1, 0
-	t0, t = 0, 1
+	# If a is coprime to m, then by using the extended Euclidean algorithm we
+	# can find integers r and s such that ra + sm = 1, i.e. ra = (-s)m + 1;
+	# hence ra = 1 modulo m, meaning r is an inverse of a modulo m. So then
+	# ax = b (mod m) is equivalent to x = rb (mod m), and so rb is the unique
+	# solution.
+	#
+	# Otherwise, the extended Euclidean algorithm can still be used to compute
+	# d = gcd(a, m). If d != 0 it will also give us a' = a / d, m' = m / d.
+	# In the exceptional case where d = 0, we have a = m = 0, and "modulo 0"
+	# is generally considered to be undefined; however we can regard 0 = b
+	# (mod 0) as equivalent to the condition that 0 = q0 + b for some integer q,
+	# i.e. 0 = b. So in this case, we can say that the solution set is the set
+	# of all integers if b = 0, and the empty set otherwise.
+	#
+	# Now, ax = b (mod m) holds iff ax = qm + b, for some integer q, and given
+	# a' = a / d and m' = m / d, we can rewrite this equation as
+	# a'dx = qm'd + b, or equivalently (a'x - qm')d = b. From this we see that
+	# if b is not divisible by d, there will be no solutions. Otherwise, we may
+	# take b' = b / d, and then we see that ax = qm + b is equivalent to
+	# a'x = qm' + b' (from dividing both sides by d). So the congruence
+	# ax = b (mod m) is equivalent in this case to a'x = b' (mod m'). And a'
+	# and m' are guaranteed to be coprime, so we can solve this equation in the
+	# way described above. In fact, from our first use of the extended Euclidean
+	# algorithm we will already have integers r and s such that ra + sm = d,
+	# and hence ra' + sm' = 1, so rb' is the unique solution modulo m'. (Note
+	# that this is modulo m', not modulo m; there will be multiple solutions
+	# modulo m, namely all integers modulo m of the form rb' + qm' where q is
+	# an integer.)
 
-	while r != 0:
-		q = r0 // r
-		r0, r = r, r0 - q * r
-		s0, s = s, s0 - q * s
-		t0, t = t, t0 - q * t
+	d, r, _, _, m_div_d = eea(a, m)
 
-	return r0, s0, t0, s, t
+	if d == 0:
+		if b == 0:
+			return ResidueClass(0, 1)
 
-def bezout_coeffs(a: int, b: int) -> tuple[int, int]:
-	_, s, t, _, _ = euclid(a, b)
-	return s, t
+		return None
 
-def _apply_crt(cong1: Cong, cong2: Cong) -> Cong:
+	b_div_d, b_mod_d = divmod(b, d)
+
+	if b_mod_d:
+		return None
+			
+	return ResidueClass(r * b_div_d, m_div_d)
+
+def _apply_crt(cong1: ResidueClass, cong2: ResidueClass) -> ResidueClass:
 	m1 = cong1.modulus
 	m2 = cong2.modulus
-	d, c1, c2, _, _ = euclid(m1, m2)
+	d, c1, c2, _, _ = eea(m1, m2)
 	assert d == 1, d
-	s = cong1.rhs * c2 * m2 + cong2.rhs * c1 * m1
+	s = cong1.residue * c2 * m2 + cong2.residue * c1 * m1
 	m = m1 * m2
-	result = Cong(s % m, m)
+	result = ResidueClass(s % m, m)
 	return result
 
-def solve_coprime_congs(congs: list[Cong]) -> Cong:
+def solve_coprime_congs(congs: list[ResidueClass]) -> ResidueClass:
 	"""Use the Chinese Remainder Theorem to solve a system of monic linear
 	congruences with pairwise coprime moduli."""
-	return ft.reduce(_apply_crt, congs, Cong(0, 1))
+	return ft.reduce(_apply_crt, congs, ResidueClass(0, 1))
 
-def solve_congs(congs: list[Cong]) -> Cong | None:
+def solve_congs(congs: list[ResidueClass]) -> ResidueClass | None:
 	"""Use the Chinese Remainder Theorem to solve a system of monic linear
 	congruences. The moduli need not be pairwise coprime, although the solution
 	will involve converting the system to one which does have pairwise coprime
@@ -172,11 +234,11 @@ def solve_congs(congs: list[Cong]) -> Cong | None:
 	# are pairwise coprime.
 
 	# these are grouped by the prime factor of their modulus
-	grouped_congs: defaultdict[int, list[Cong]] = defaultdict(list)
+	grouped_congs: defaultdict[int, list[ResidueClass]] = defaultdict(list)
 
 	for cong in congs:
 		for p, n in prime_factors(cong.modulus).items():
-			grouped_congs[p].append(Cong(cong.rhs, p ** n))
+			grouped_congs[p].append(ResidueClass(cong.rhs, p ** n))
 
 	# Now all congruences in the system have prime powers as moduli. So if any
 	# two have non-coprime moduli, the moduli will be powers of the same prime.
@@ -186,7 +248,7 @@ def solve_congs(congs: list[Cong]) -> Cong | None:
 	# changing the solution set, while if a != b (mod p^m), the system is
 	# unsolvable.
 
-	new_congs: list[Cong] = []
+	new_congs: list[ResidueClass] = []
 
 	for p, congs in grouped_congs.items():
 		min_modulus = min(cong.modulus for cong in congs)
@@ -194,7 +256,7 @@ def solve_congs(congs: list[Cong]) -> Cong | None:
 
 		if len(rhses) == 1:
 			new_congs.append(
-				Cong(rhses.pop(), max(cong.modulus for cong in congs))
+				ResidueClass(rhses.pop(), max(cong.modulus for cong in congs))
 			)
 		else:
 			return None
