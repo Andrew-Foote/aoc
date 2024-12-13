@@ -1,7 +1,6 @@
 from collections.abc import Generator
 from dataclasses import dataclass
-import math
-import numpy as np
+import functools as ft
 import re
 from solutions.python.lib.gint import gint
 from solutions.python.lib import numth 
@@ -31,151 +30,46 @@ def cost(solution: tuple[int, int]) -> int:
     u, v = solution
     return u * 3 + v
 
-@dataclass
+@dataclass(frozen=True)
 class Machine:
-    a_vec: gint
-    b_vec: gint
+    a_inc: gint
+    b_inc: gint
     prize_pos: gint
-
-    def _solutions(self, a: int, b: int, p: int) -> Generator[tuple[int, int]]:
-        """Yields all 2-tuples (u, v) of integers such that a * u + b * v == p,
-        0 <= u <= 100 and 0 <= v <= 100."""
-
-        # To solve the equation a * u + b * v == p, we focus on solving for u
-        # first, and rewrite it as a congruence: a * u == p (mod b). This can
-        # be solved in a standard way, and it will either have no solutions, or
-        # its solution set will be a residue class.
-
-        sol = numth.solve_lincong(a, p, b)
-
-        if sol is None:
-            return
-
-        # Once we have the solution set, we can use the inequalities to reduce
-        # it to a finite set, and then just loop through each possible solution,
-        # and calculate the unique value of v that will work with it for each
-        # one.
-
-        for u in sol.bound(0, 101):
-            #     a * u + b * v == p 
-            # <=> b * v == p - a * u
-            # <=> v == (p - a * u) / b
-            v = (p - a * u) // b
-            yield (u, v)
-
-    def x_solutions(self) -> Generator[tuple[int, int]]:
-        """Yields all 2-tuples (u, v) of integers such that the machine will
-        be at the prize's x-coordinate after u presses of button A and presses
-        of button B."""
-
-        yield from self._solutions(
-            self.a_vec.real, self.b_vec.real, self.prize_pos.real
-        )
-
-    def y_solutions(self) -> Generator[tuple[int, int]]:
-        """Yields all 2-tuples (u, v) of integers such that the machine will
-        be at the prize's y-coordinate after u presses of button A and presses
-        of button B."""
-
-        yield from self._solutions(
-            self.a_vec.imag, self.b_vec.imag, self.prize_pos.imag
-        )
-
-    def solutions(self) -> set[tuple[int, int]]:
-        """Yields all 2-tuples (u, v) of integers such that the machine will
-        be at the prize's coordinates after u presses of button A and presses
-        of button B."""
-
-        ax, ay = self.a_vec.rect()
-        bx, by = self.b_vec.rect()
+    
+    @ft.cache
+    def cheapest_solution(self) -> tuple[int, int] | None:
+        ax, ay = self.a_inc.rect()
+        bx, by = self.b_inc.rect()
         px, py = self.prize_pos.rect()
 
-        # We want to find non-negative integers (u, v) such that
-        # 
+        # Let u be the number of times the A button is pressed, and let v be the
+        # number of times the B button is pressed. The position of the claw will
+        # then be (ax * u + bx * v, ay * u + by * v). So the prize is won iff
+        # (u, v) is a solution to the system of 2 simultaneous equations
+        #
         #   ax * u + bx * v == px,  (1)
         #   ay * u + by * v == py.  (2)
         #
-        # This is just a system of two linear equations. However we need the
-        # integer solutions only, and using Numpy doesn't work for part 2 due to
-        # precision issues, so we'll solve it manually.
-
-        u, v = numth.line_intersection((ax, bx, px), (ay, by, py))
-        print(u, v)
-
-        if u.denominator == 1 and v.denominator == 1:
-            return {(u.numerator, v.numerator)}
-
-    def cheapest_solution(self) -> tuple[int, int] | None:
-        sols = self.solutions()
-
-        if not sols:
-            return None
+        # Note that u and v also have to be non-negative integers.
         
-        return min(sols, key=cost)
-    
-    def p2_cheapest_solution(self) -> tuple[int, int] | None:
-        coeff_matrix = np.array([
-            [self.a_vec.real, self.b_vec.real],
-            [self.a_vec.imag, self.b_vec.imag]
-        ])
+        sol = numth.line_intersection((ax, bx, px), (ay, by, py))
 
-        rhs_vector = np.array([self.prize_pos.real, self.prize_pos.imag])
+        # We assume the system has exactly one solution. Although the problem
+        # talks about the "cheapest" solution, it turns out that all the systems
+        # we have to solve do have exactly one solution, so we don't actually
+        # need to do any working out of which one is cheapest...
 
-        print('coeffs', coeff_matrix)
-        print('rhs', rhs_vector)
-
-        sol = np.linalg.solve(coeff_matrix, rhs_vector)
-
-        print(sol)
+        assert sol is not None
 
         u, v = sol
-        ui = int(u)
-        vi = int(v)
 
-        if ui == u and vi == v:
-            return {(ui, vi)}
-        else:
-            return None
-
-        # set of all integers u such that for some integer v, the machine will
-        # be at the prize's x-coordinate after u presses of button A and v
-        # presses of button B
-        xu_sol = numth.solve_lincong(
-            self.a_vec.real, self.b_vec.real, self.prize_pos.real
-        )
-
-        # set of all integers u such that for some integer v, the machine will
-        # be at the prize's y-coordinate after u presses of button A and v
-        # presses of button B
-        yu_sol = numth.solve_lincong(
-            self.a_vec.imag, self.b_vec.imag, self.prize_pos.imag 
-        )
-
-        # set of all integers u such that for some integers v1 and v2, the
-        # machine will be at the prize's x-coordinate after u presses of button
-        # A and v1 presses of button B, and at the prize's y-coordinate after
-        # u presses of button A and v2 presses of button B
-        sol = xu_sol & yu_sol
-        minsol = sol.min_given_lb(0)
-
-        # we know that the u-solutions form an arithmetic progression
-        # so there is a consistent gap between solutions
-        # (u, v0) vs (u + m, v1)
-        # 3 * u + v0 >= 3 * (u + m) + v1
-        # is equiv to v1 - v0 <= -3 * m
-        #
-        # now, for each u-solution, the corresponding v-solutions will be
-        # (p - a * u) // b   [over both x and y]
-        #
-        # we need the vs to be the same --- so
-        #  (px - ax * u) // bx == (py - ay * u) // by
-        # px // bx - ax * u // bx == py // by - ay * u // by
-        # (ay // by - ax // bx) * u == py // by - px // bx
-        # u == (py // by - px // bx) / (ay // by - ax // bx)?
-
+        if (
+            u.denominator == 1 and v.denominator == 1
+            and u.numerator >= 0 and v.numerator >= 0
+        ):
+            return (u.numerator, v.numerator)
         
-
-        return (xu_sol & yu_sol).min_given_lb(0)
+        return None
 
 def parse(ip: str) -> Generator[Machine]:
     paras = ip.split('\n\n')
@@ -188,25 +82,25 @@ def parse(ip: str) -> Generator[Machine]:
         m = re.match(r'Button A: X\+(\d+), Y\+(\d+)', a_line)
         assert m is not None, a_line
         a_x, a_y = map(int, m.groups())
-        a_vec = gint(a_x, a_y)
+        a_inc = gint(a_x, a_y)
 
         m = re.match(r'Button B: X\+(\d+), Y\+(\d+)', b_line)
         assert m is not None, b_line
         b_x, b_y = map(int, m.groups())
-        b_vec = gint(b_x, b_y)
+        b_inc = gint(b_x, b_y)
 
         m = re.match(r'Prize: X=(\d+), Y=(\d+)', prize_line)
         assert m is not None, prize_line
         p_x, p_y = map(int, m.groups())
         prize_pos = gint(p_x, p_y)
 
-        yield Machine(a_vec, b_vec, prize_pos)
+        yield Machine(a_inc, b_inc, prize_pos)
 
 def p2_parse(ip: str) -> Generator[Machine]:
     inc = gint(10000000000000, 10000000000000)
 
     for machine in parse(ip):
-        yield Machine(machine.a_vec, machine.b_vec, machine.prize_pos + inc)
+        yield Machine(machine.a_inc, machine.b_inc, machine.prize_pos + inc)
 
 def winnabilities_csv(ip: str) -> str:
     return ','.join(
@@ -214,16 +108,19 @@ def winnabilities_csv(ip: str) -> str:
         for machine in parse(ip)
     )
 
-def p1(ip: str) -> int:
+def optimal_cost(machines: Generator[Machine]) -> int:
     result = 0
 
-    for machine in parse(ip):
+    for machine in machines:
         sol = machine.cheapest_solution()
 
         if sol is not None:
             result += cost(sol)
 
     return result
+
+def p1(ip: str) -> int:
+    return optimal_cost(parse(ip))
 
 def p2_winnabilities_csv(ip: str) -> str:
     return ','.join(
@@ -232,12 +129,4 @@ def p2_winnabilities_csv(ip: str) -> str:
     )
 
 def p2(ip: str) -> int:
-    result = 0
-
-    for machine in p2_parse(ip):
-        sol = machine.cheapest_solution()
-
-        if sol is not None:
-            result += cost(sol)
-
-    return result
+    return optimal_cost(p2_parse(ip))

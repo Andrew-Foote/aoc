@@ -239,7 +239,7 @@ def solve_congs(congs: list[ResidueClass]) -> ResidueClass | None:
 
 	for cong in congs:
 		for p, n in prime_factors(cong.modulus).items():
-			grouped_congs[p].append(ResidueClass(cong.rhs, p ** n))
+			grouped_congs[p].append(ResidueClass(cong.residue, p ** n))
 
 	# Now all congruences in the system have prime powers as moduli. So if any
 	# two have non-coprime moduli, the moduli will be powers of the same prime.
@@ -253,7 +253,7 @@ def solve_congs(congs: list[ResidueClass]) -> ResidueClass | None:
 
 	for p, congs in grouped_congs.items():
 		min_modulus = min(cong.modulus for cong in congs)
-		rhses = {cong.rhs % min_modulus for cong in congs}
+		rhses = {cong.residue % min_modulus for cong in congs}
 
 		if len(rhses) == 1:
 			new_congs.append(
