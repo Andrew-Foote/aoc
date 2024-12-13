@@ -1,5 +1,6 @@
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
+from fractions import Fraction
 import functools as ft
 import heapq
 import itertools as it
@@ -153,7 +154,7 @@ class ResidueClass:
 	def bound(self, start: int, stop: int) -> range:
 		"""Return a range consisting of all solutions within the given
 		bounds."""
-		
+
 		return range(self.minsol(start), stop, self.modulus)
 
 def solve_lincong(a: int, b: int, m: int) -> ResidueClass | None:
@@ -265,3 +266,28 @@ def solve_congs(congs: list[ResidueClass]) -> ResidueClass | None:
 	# apply the Chinese Remainder Theorem directly.
 
 	return solve_coprime_congs(new_congs)
+
+def line_intersection(
+	coeffs1: tuple[int, int, int], coeffs2: tuple[int, int, int]
+) -> tuple[Fraction, Fraction] | None:
+	
+	a, b, c = coeffs1
+	A, B, C = coeffs2
+
+	if a == 0:
+		if A != 0:
+			return line_intersection(coeffs2, coeffs1)
+
+		if b * C == B * c:
+			return None # lines are identical, any point on them is a solution
+
+		return None # no solutions
+
+	if a * B == A * b:
+		if A * c == a * C:
+			return None # lines are identical, any point on them is a solution
+
+		return None # no solutions
+
+	d = a * B - A * b
+	return Fraction(B * c - b * C, d), Fraction(a * C - A * c, d)
