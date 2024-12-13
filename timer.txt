@@ -2,4 +2,4 @@ I'm using modifications of this file to allow me to use my Git history to track 
 me to solve the problems. If I want to start or end a timer but there's nothing new to commit, I
 will add a dot to the line below and commit that change.
 
-..
+...
