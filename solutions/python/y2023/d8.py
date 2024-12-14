@@ -268,6 +268,6 @@ def p2(ip: str) -> int:
 		sol = numth.solve_congs(congs)
 
 		if sol is not None:
-			sols.append(sol.minsol(lb=max_pre_cycle_len))
+			sols.append(sol.min_given_lb(max_pre_cycle_len))
 
 	return min(sols)

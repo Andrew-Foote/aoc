@@ -123,7 +123,7 @@ class ResidueClass:
 	def __contains__(self, x: int) -> bool:
 		return x % self.modulus == self.residue
 
-	def minsol(self, lb: int) -> int:
+	def min_given_lb(self, lb: int) -> int:
 		"""Return the minimal element that is greater than or equal to the
 		specified lower bound."""
 
@@ -137,7 +137,7 @@ class ResidueClass:
 
 		return a + math.ceil((lb - a) / m) * m
 
-	def maxsol(self, ub: int) -> int:
+	def max_given_ub(self, ub: int) -> int:
 		"""Return the maximal solution that is less than or equal to the
 		specified upper bound."""
 
