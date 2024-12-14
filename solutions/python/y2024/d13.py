@@ -24,6 +24,12 @@ Prize: X=18641, Y=10279''', [
     ('p1', 480),
     ('winnabilities_csv', '1,0,1,0'),
     ('p2_winnabilities_csv', '0,1,0,1'),
+]), ('example2', '''\
+Button A: X+1, Y+1
+Button B: X+1, Y+1
+Prize: X=1, Y=1''', [
+    ('p1', 1),
+    ('winnabilities_csv', '1'),
 ])]
 
 def cost(solution: tuple[int, int]) -> int:
@@ -51,7 +57,7 @@ class Machine:
         #   ay * u + by * v == py.  (2)
         #
         # Note that u and v also have to be non-negative integers.
-        
+
         sol = numth.line_intersection((ax, bx, px), (ay, by, py))
 
         # We assume the system has exactly one solution. Although the problem

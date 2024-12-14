@@ -223,7 +223,10 @@ def p2(ip: str) -> int:
 	# stopping point occurs within one of the pre-cycles for some node.
 
 	max_pre_cycle_len = max(path.pre_cycle_len for path in paths)
-	iterators = [follow_instructs(instructs, network, start) for start in starts]
+	
+	iterators = [
+		follow_instructs(instructs, network, start) for start in starts
+	]
 
 	for i, *nodes in zip(range(max_pre_cycle_len), *iterators):
 		if all(node.is_end() for node in nodes):
@@ -243,15 +246,17 @@ def p2(ip: str) -> int:
 	# can distribute the conjunctions through to get a bunch of systems of
 	# linear congruences, which we can solve.
 
-	formula: prop.Prop[numth.Cong] = prop.TrueProp()
+	formula: prop.Prop[numth.ResidueClass] = prop.TrueProp()
 
 	for path in paths:
 		offset = path.pre_cycle_len
 		modulus = path.cycle_len
-		djclause: prop.Prop[numth.Cong] = prop.FalseProp()
+		djclause: prop.Prop[numth.ResidueClass] = prop.FalseProp()
 
 		for stop_index in path.cycle_stops:
-			djclause |= prop.Lit(numth.Cong(offset + stop_index, modulus))
+			djclause |= prop.Lit(
+				numth.ResidueClass(offset + stop_index, modulus)
+			)
 
 		formula &= djclause
 

@@ -174,7 +174,10 @@ def free_vars(e: LinPoly | Constraint) -> set[str]:
 	else:
 		return free_vars(e.lhs) | free_vars(e.rhs)
 
-def solve(objective: LinPoly, constraints: Iterable[Constraint]):
+def solve(
+	objective: LinPoly, constraints: Iterable[Constraint]
+) -> scipy.optimize.OptimizeResult:
+	
 	constraints = [constraint.normalize() for constraint in constraints]
 	xs = sorted(free_vars(objective).union(*(free_vars(constraint) for constraint in constraints)))
 	# don't forget to handle the objective const_coeff
