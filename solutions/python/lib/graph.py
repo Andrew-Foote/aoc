@@ -121,7 +121,7 @@ def dijkstra(root: _T, children: ChildGenerator[_T]):
     visited: set[_T] = {root}
 
     while queue:
-        # print(queue)
+        # print(sorted(visited, key=lambda node: (node.pos.real, node.pos.imag)))
         # input()
         node: _T = heapq.heappop(queue)
         yield node
@@ -130,6 +130,8 @@ def dijkstra(root: _T, children: ChildGenerator[_T]):
             if child not in visited:
                 visited.add(child)
                 heapq.heappush(queue, child)
+            # else:
+            #     print(f'skipped {node} because it was already visited')
 
 # Incorrect implementation of dfs with a visited set, left as a warning! See
 # https://11011110.github.io/blog/2013/12/17/stack-based-graph-traversal.html.

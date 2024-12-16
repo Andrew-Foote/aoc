@@ -57,7 +57,6 @@ class AOC:
     @ft.cached_property
     def session_cookie(self) -> str:
         firefox_cookie_db_path = self.firefox_profile_path / 'cookies.sqlite'
-        print(firefox_cookie_db_path)
 
         if not firefox_cookie_db_path.exists():
             raise ConfigError(
