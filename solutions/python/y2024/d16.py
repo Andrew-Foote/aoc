@@ -6,12 +6,7 @@ from solutions.python.lib.gint import gint
 from solutions.python.lib.graph import dijkstra
 from solutions.python.lib.grid import EAST, Grid
 
-test_inputs = [('small-example', '''\
-####
-#SE#
-####''', [
-    ('p1', 1),
-]), ('example', '''\
+test_inputs = [('example', '''\
 ###############
 #.......#....E#
 #.#.###.#.###.#
@@ -26,8 +21,7 @@ test_inputs = [('small-example', '''\
 #.....#...#.#.#
 #.###.#.#.#.#.#
 #S..#.....#...#
-###############
-''', [
+###############''', [
     ('p1', 7036)
 ]), ('example2', '''\
 #################
@@ -48,6 +42,16 @@ test_inputs = [('small-example', '''\
 #S#.............#
 #################''', [
     ('p1', 11048)
+]), ('small-example', '''\
+####
+#SE#
+####''', [
+    ('p1', 1),
+]), ('small-example-2', '''\
+####
+#ES#
+####''', [
+    ('p1', 2001)
 ])]
 
 @ft.total_ordering
@@ -79,6 +83,7 @@ def p1(ip: str) -> int:
 
     grid = Grid(ip.splitlines())
     start_pos = next(p for p in grid.rect() if grid[p] == 'S')
+    end_pos = next(p for p in grid.rect() if grid[p] == 'E')
     root = Node(0, start_pos, EAST)
 
     def children(node: Node) -> Generator[Node]:
@@ -86,11 +91,24 @@ def p1(ip: str) -> int:
         pos = node.pos
         d = node.dir
 
-        if pos + d in grid and grid[pos + d] != '#':
-            yield Node(cost + 1, pos + d, d)
+        clockd = d * gint(0, 1)
+        anticlockd = d * gint(0, -1)
 
-        yield Node(cost + 1000, pos, d * gint(0, 1))
-        yield Node(cost + 1000, pos, d * gint(0, -1))
+        if pos + d in grid and grid[pos + d] != '#':
+            # i = 1
+
+            # while grid[pos + i * d + clockd] == '#' and grid[pos + i * d + anticlockd] == '#' and pos + i * d + d in grid and grid[pos + i * d + d] != '#':
+            #     i += 1
+            
+            # yield Node(cost + i, pos + i * d, d)
+            # yield Node(cost + 1, pos + d, d)
+            yield Node(cost + 1 + abs(end_pos - pos) - abs(end_pos - (pos + d)), pos + d, d)
+
+        if (pos + clockd in grid and grid[pos + clockd] != '#') or (pos - d in grid and grid[pos - d] != '#'):
+            yield Node(cost + 1000, pos, d * gint(0, 1))
+
+        if (pos + anticlockd in grid and grid[pos + anticlockd] != '#') or (pos - d in grid and grid[pos - d] != '#'):
+            yield Node(cost + 1000, pos, d * gint(0, -1)) 
 
     for node in dijkstra(root, children):
         if grid[node.pos] == 'E':
