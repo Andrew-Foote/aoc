@@ -40,7 +40,8 @@ test_inputs = [('example', '''\
 ..#..#.
 .#..#..
 #.#....'''),
-    ('shortest_path_len_12_falls', '22')
+    ('shortest_path_len_12_falls', '22'),
+    ('p2', '6,1'),
 ])]
 
 def parse(ip: str) -> tuple[list[gint], int]:
@@ -71,8 +72,10 @@ def pic_12_falls(ip: str) -> int:
 
     return Rect.from_tlwh(0, 0, size + 1, size + 1).picture(draw_cell)
 
-def shortest_path_len_n_falls(ip: str, fall_count: int) -> int:
-    points, size = parse(ip)
+def shortest_path_len_n_falls(
+    points: list[int], size: int, fall_count: int
+) -> int | None:
+
     fallen = set(points[:fall_count])
     start = gint(0, 0)
     end = gint(size, size)
@@ -95,17 +98,21 @@ def shortest_path_len_n_falls(ip: str, fall_count: int) -> int:
             if adj not in visited:
                 queue.appendleft((steps + 1, adj))
                 visited.add(adj)
+
+    return None
         
-def shortest_path_len_12_falls(ip: str) -> int:
-    return shortest_path_len_n_falls(ip, 12)
+def shortest_path_len_12_falls(ip: str) -> int | None:
+    points, size = parse(ip)
+    return shortest_path_len_n_falls(points, size, 12)
 
-def p1(ip: str) -> int:
-    return shortest_path_len_n_falls(ip, 1024)
+def p1(ip: str) -> int | None:
+    points, size = parse(ip)
+    return shortest_path_len_n_falls(points, size, 1024)
 
-# we have a position
-# this is initially (0, 0)
-# goal is to reach the endpoint, which is (S, S),
-# where S is size (= 6 for example, 70 for real input)
-# the input is a list of positions of falling bytes
-# when a byte falls into a position, we can no longer pass through the point
-# the bytes fall in the specified order
+# bruteforce solution but it works ok
+def p2(ip: str) -> int:
+    points, size = parse(ip)
+
+    for i, p in enumerate(points):
+        if shortest_path_len_n_falls(ip, i + 1) is None:
+            return f'{p.real},{p.imag}'
