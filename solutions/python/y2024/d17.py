@@ -5,7 +5,6 @@ import functools as ft
 import itertools as it
 import re
 from typing import assert_never
-from solutions.python.lib.digits import int_from_digits_leading_first
 
 test_inputs = [('example', '''\
 Register A: 729
@@ -267,7 +266,7 @@ def disassemble(program: Program) -> Generator[Statement]:
                 )
 
 def p2(ip: str) -> int:
-    registers, program = parse(ip)
+    _, program = parse(ip)
 
     # To solve part 2, I first used this code to see what the program is doing:
     # 
