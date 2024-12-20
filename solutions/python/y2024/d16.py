@@ -102,7 +102,7 @@ def p1(ip: str) -> int:
             
             # yield Node(cost + i, pos + i * d, d)
             # yield Node(cost + 1, pos + d, d)
-            yield Node(cost + 1 + abs(end_pos - pos) - abs(end_pos - (pos + d)), pos + d, d)
+            yield Node(cost + 1, pos + d, d)
 
         if (pos + clockd in grid and grid[pos + clockd] != '#') or (pos - d in grid and grid[pos - d] != '#'):
             yield Node(cost + 1000, pos, d * gint(0, 1))
