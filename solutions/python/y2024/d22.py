@@ -25,6 +25,12 @@ test_inputs = [('singular-example', '''\
 100: 15273692
 2024: 8667524'''),
     ('p1', 37327623)
+]), ('p2-example', '''\
+1
+2
+3
+2024''', [
+    ('p2', '-2,1,-1,3'),
 ])]
 
 def mix(num: int, val: int) -> int:
@@ -57,7 +63,8 @@ def next_10_secret_numbers(ip: str) -> str:
 
 def get_secret_number(initial_num: int, index: int) -> int:
     return next(
-        n for i, n in enumerate(next_secret_numbers(initial_num)) if i > index - 2
+        n for i, n in enumerate(next_secret_numbers(initial_num))
+        if i >= index - 1
     )
 
 def report(ip: str) -> str:
@@ -71,3 +78,28 @@ def report(ip: str) -> str:
 
 def p1(ip: str) -> int:
     return sum(get_secret_number(num, 2000) for num in parse(ip))
+
+def price(num: int) -> int:
+    return num % 10
+
+def price_changes(cur_num: int) -> Generator[int]:
+    prev_price = price(cur_num)
+
+    while True:
+        cur_num = next_secret_number(cur_num)
+        cur_price = price(cur_num)
+        yield cur_price - prev_price
+        prev_price = cur_price
+
+def p2(ip: str) -> int:
+    nums = parse(ip)
+
+    for num in nums:
+        for n in it.islice(price_changes(num), 2000):
+            ...
+            
+
+
+# we want to sell it at the highest price
+# to do that we need to instruct the monkey to sell it
+# after the right sequence of 4 consecutive changes in price
