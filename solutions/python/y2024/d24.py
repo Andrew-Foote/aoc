@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import assert_never
+import graphviz
 from solutions.python.lib.digits import int_from_digits_leading_last
 
 test_inputs = [('example', '''\
@@ -104,22 +105,9 @@ z09: 1
 z10: 1
 z11: 0
 z12: 0'''),
-    ('z_wire_output', '0011111101000'),
+    ('z_wire_output', '0001011111100'),
     ('p1', 2024)
 ])]
-
-
-
-# x00: 1
-# x01: 1
-# x02: 1
-# y00: 0
-# y01: 1
-# y02: 0
-
-# x00 AND y00 -> z00
-# x01 XOR y01 -> z01
-# x02 OR y02 -> z02''', [
 
 class Op(Enum):
     AND = 'AND'
@@ -155,9 +143,6 @@ def parse(ip: str) -> tuple[dict[str, bool], dict[str, Expr]]:
         op = Op(optor)
         eqns[rhs] = op, lopnd, ropnd
 
-    print(f'INPUTS: {inputs}')
-    input()
-
     return inputs, eqns
 
 def wait_for_wire_value(
@@ -174,9 +159,6 @@ def wait_for_wire_value(
     assert rop in known_values
     
     result = operator.apply(known_values[lop], known_values[rop])
-    print(f'calculating {out_wire} = {lop} {operator.value} {rop} = {result}')
-    print(f'  {lop} = {known_values[lop]}')
-    print(f'  {rop} = {known_values[rop]}')
     known_values[out_wire] = result
 
 def wire_outputs(ip: str) -> dict[str, bool]:
@@ -211,3 +193,205 @@ def z_wire_output(ip: str) -> str:
 
 def p1(ip: str) -> int:
     return int_from_digits_leading_last(z_wire_bits(ip), 2)
+
+def p2(ip: str) -> int:
+    inputs, eqns = parse(ip)
+
+    eqns['shh'], eqns['z21'] = eqns['z21'], eqns['shh']
+    eqns['dtk'], eqns['vgs'] = eqns['vgs'], eqns['dtk']
+    eqns['dqr'], eqns['z33'] = eqns['z33'], eqns['dqr']
+    eqns['pfw'], eqns['z39'] = eqns['z39'], eqns['pfw']
+
+    try:
+        validate_adder(inputs, eqns)
+    except AssertionError as e:
+        import traceback
+        print(traceback.format_exc())
+
+    g = graphviz.Digraph()
+
+    for rhs, (operator, lopnd, ropnd) in eqns.items():
+        g.node(rhs, label=f'{rhs}: {operator.value}')
+        g.node(lopnd)
+        g.node(ropnd)
+        g.edge(lopnd, rhs)
+        g.edge(ropnd, rhs)
+
+    g.render('solutions/python/y2024/d24.gv', view=True)
+
+    return ','.join(sorted((
+        'shh', 'z21', 'dtk', 'vgs', 'dqr', 'z33', 'pfw', 'z39'
+    )))
+
+def validate_adder(inputs: set[str], eqns: dict[str, Expr]) -> bool:
+    groups = [{} for _ in range(45)]
+    validated = set()
+    node_to_type_and_group: dict[str, tuple[str, int]] = {}
+
+    def validate(rhs: str) -> None:
+        if rhs in validated:
+            return None
+
+        assert rhs[0] not in 'xy'
+        op, left, right = eqns[rhs]
+
+        def is_carry(node_type, num):
+            if num:
+                return node_type == 'combcarry'
+            else:
+                return node_type == 'carry'
+
+        match op:
+            case Op.XOR: # sum / adjsum
+                if (
+                    (left[0] == 'x' and right[0] == 'y')
+                    or (left[0] == 'y' and right[0] == 'x')
+                ): # sum
+                    num1 = int(left[1:])
+                    num2 = int(right[1:])
+                    assert num1 == num2
+
+                    if num1 == 0:
+                        assert rhs == 'z00'
+                    else:
+                        assert rhs[0] != 'z'
+
+                    assert 'sum' not in groups[num1], (rhs, op, left, right, groups[num1])
+                    groups[num1]['sum'] = rhs
+                    node_to_type_and_group[rhs] = 'sum', num1
+                else: # adjsum
+                    validate(left)
+                    validate(right)
+                    ltype, lgroup = node_to_type_and_group[left]
+                    rtype, rgroup = node_to_type_and_group[right]
+                    # the first error was here: ('ssh', 21, 20)
+                    # third error was here too: ('dqr', 32, 33)
+                    # and fourth: ('pfw', 39, 38)
+                    assert rhs[0] == 'z', (rhs, lgroup, rgroup)
+
+                    if (
+                        rtype == 'sum' and is_carry(ltype, lgroup)
+                        and lgroup == rgroup - 1
+                    ):
+                        assert 'adjsum' not in groups[rgroup]
+                        groups[rgroup]['adjsum'] = rhs
+                        node_to_type_and_group[rhs] = 'adjsum', rgroup
+                    elif (
+                        ltype == 'sum' and is_carry(rtype, rgroup)
+                        and rgroup == lgroup - 1
+                    ):
+                        assert 'adjsum' not in groups[lgroup]
+                        groups[lgroup]['adjsum'] = rhs
+                        node_to_type_and_group[rhs] = 'adjsum', lgroup
+                    else:
+                        assert False
+            case Op.AND: # carry / adjcarry
+                if (
+                    (left[0] == 'x' and right[0] == 'y')
+                    or (left[0] == 'y' and right[0] == 'x')
+                ): # carry
+                    num1 = int(left[1:])
+                    num2 = int(right[1:])
+                    assert num1 == num2
+                    assert rhs[0] != 'z'
+                    assert 'carry' not in groups[num1]
+                    groups[num1]['carry'] = rhs
+                    node_to_type_and_group[rhs] = 'carry', num1
+                else: # adjcarry
+                    validate(left)
+                    validate(right)
+                    ltype, lgroup = node_to_type_and_group[left]
+                    rtype, rgroup = node_to_type_and_group[right]
+                    assert rhs[0] != 'z'
+                     
+                    if (
+                        rtype == 'sum' and is_carry(ltype, lgroup)
+                        and lgroup == rgroup - 1
+                    ):
+                        assert 'adjcarry' not in groups[rgroup]
+                        groups[rgroup]['adjcarry'] = rhs
+                        node_to_type_and_group[rhs] = 'adjcarry', rgroup
+                    elif (
+                        ltype == 'sum' and is_carry(rtype, rgroup)
+                        and rgroup == lgroup - 1
+                    ):
+                        assert 'adjcarry' not in groups[lgroup]
+                        groups[lgroup]['adjcarry'] = rhs
+                        node_to_type_and_group[rhs] = 'adjcarry', lgroup
+                    else:
+                        # second error was here: ('bmg', <Op.AND: 'AND'>, 'vgs', 'skh', 'carry', 26, 'combcarry', 25)
+                        assert False, (rhs, op, left, right, ltype, lgroup, rtype, rgroup)
+            case Op.OR: # combcarry
+                validate(left)
+                validate(right)
+                ltype, lgroup = node_to_type_and_group[left]
+                rtype, rgroup = node_to_type_and_group[right]
+                assert lgroup == rgroup
+                assert lgroup == 44 or rhs[0] != 'z'
+
+                assert (
+                    (ltype == 'carry' and rtype == 'adjcarry')
+                    or (ltype == 'adjcarry' or rtype == 'carry')
+                )
+
+                assert 'combcarry' not in groups[lgroup]
+                groups[lgroup]['combcarry'] = rhs
+                node_to_type_and_group[rhs] = 'combcarry', lgroup
+
+        validated.add(rhs)
+
+    for rhs in eqns:
+        validate(rhs)
+
+    # we can classify nodes in the graph into the following types:
+    #
+    # x nodes
+    #    these have labels of the form 'x{n:02}' where 0 <= n <= 44,
+    #    and no in-edges
+    #
+    # y nodes
+    #    these have labels of the form 'y{n:02}' where 0 <= n <= 44,
+    #    and no in-edges
+    #
+    # modular sum nodes
+    #    these have two parents, an x and y node with the same number,
+    #    and have operator XOR
+    #    NB: the modular sum node for x00 and y00 is z00, however others
+    #    are not z nodes
+    #
+    # raw carry nodes
+    #    these nodes have two parents, which should be an x and y node
+    #    with the same number, and have operator AND
+    #
+    # carry-adjusted modular sum nodes (z01--z44)
+    #    these nodes have two parents, which should be a modular sum
+    #    node for some n, and the carry node for n - 1
+    #      (for n = 1, the carry node will be a raw carry node, otherwise
+    #      it will be a combined carry node)
+    #    and operator XOR
+    #
+    # carry-adjusted carry nodes
+    #    these nodes have two parents, which should be a modular sum
+    #    node for some n, and the carry node for n - 1
+    #      (for n = 1, the carry node will be a raw carry node, otherwise
+    #      it will be a combined carry node)
+    #    and operator AND
+    #
+    # combined carry nodes
+    #    these are OR nodes with two parents: the raw carry node for n,
+    #    and the carry-adjusted carry node for n
+    #      z45 is the combined carry node for n = 44
+    #
+    # for each n from 0 to 44 we expect:
+    #   1 x node, 1 y node, 1 modular sum node, 1 raw carry node
+    # for nodes 1 to 44 we additionally expect:
+    #   1 carry-adjusted modular sum node, 1 carry-adjusted carry node,
+    #   1 combined carry node
+    # z node should be the modular sum node for 0, the carry-adjsted modular
+    #   sum node for 1--44, the combined carry node (of 44) for 45
+
+    #
+    # z01--z44
+    #       
+
+

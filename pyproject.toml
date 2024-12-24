@@ -15,6 +15,7 @@ classifiers = [
 ]
 dependencies = [
     "apsw",
+    "graphviz",
     "line-profiler",
     "mpmath",
     "mypy",
