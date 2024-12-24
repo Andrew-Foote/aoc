@@ -124,7 +124,9 @@ def valid_interconnected_groups_lines(ip: str) -> str:
 def p1(ip: str) -> int:
     return len(set(valid_interconnected_groups(ip)))
 
-def joinable(graph: set[Edge], g1: set[Node], g2: set[Node]) -> bool:
+import functools as ft
+
+def joinable(graph: frozenset[Edge], g1: set[Node], g2: set[Node]) -> bool:
     # assume g1 and g2 are totally connected ((a, b) is an edge for every pair
     # of nodes a, b belonging to g1, same for g2)
     # we want to check whether g1 uu g2 is also totally connected
@@ -132,7 +134,99 @@ def joinable(graph: set[Edge], g1: set[Node], g2: set[Node]) -> bool:
     # nodes a, b where a in g1 and b in g2
     return all(edge(n1, n2) in graph for n1, n2 in it.product(g1, g2))
 
+# this might work, but it's too slow
 def p2(ip: str) -> int:
+    edges = frozenset(parse(ip))
+    group_dict: dict[Node, set[frozenset[Node]]] = {}
+    largest_group: frozenset[Node] | None = None
+
+    for i, (n1, n2) in enumerate(edges):
+        print(f'considering edge number {i}: {{{n1}, {n2}}}')
+
+        if n1 not in group_dict:
+            group = frozenset([n1])
+            group_dict[n1] = {group}
+
+            if largest_group is None:
+                largest_group = group
+        
+        if n2 not in group_dict:
+            group = frozenset([n2])
+            group_dict[n2] = {group}
+
+            if largest_group is None:
+                largest_group = group
+
+        g1s = group_dict[n1]
+        g2s = group_dict[n2]
+        # print(f'  {n1} belongs to groups {g1s}')
+        # print(f'  {n2} belongs to groups {g2s}')
+
+        for g1, g2 in it.product(g1s, g2s):
+            if not joinable(edges, g1, g2):
+                # print(f'  {g1} and {g2} not joinable')
+                continue
+        
+            # print(f'  {g1} and {g2} joinable')
+
+            combined_group = g1 | g2
+
+            for n in combined_group:
+                group_dict[n].add(combined_group)
+
+            if len(combined_group) > len(largest_group):
+                # print(f'  largest group is now {combined_group}')
+                largest_group = combined_group
+
+    # print(group_dict)
+    return ','.join(sorted(largest_group))
+
+# I think this is enough, the whole union-find apparatus isn't really needed
+# However, neither solution (neither this nor the union-find one) seems to work
+# reliably... they only give the right answer like 50% of the time
+def p2_bad(ip: str) -> int:
+    edges = set(parse(ip))
+    group_dict: dict[Node, set[Node]] = {}
+    largest_group: set[Node] | None = None
+
+    for n1, n2 in edges:
+        print(f'considering edge {{{n1}, {n2}}}')
+
+        if n1 not in group_dict:
+            group = {n1}
+            group_dict[n1] = group
+
+            if largest_group is None:
+                largest_group = {n1}
+        
+        if n2 not in group_dict:
+            group_dict[n2] = {n2}
+
+        g1 = group_dict[n1]
+        g2 = group_dict[n2]
+        print(f'  {n1} belongs to group {g1}')
+        print(f'  {n2} belongs to group {g2}')
+
+        if not joinable(edges, g1, g2):
+            print('  not joinable')
+            continue
+    
+        print('  joinable')
+
+        combined_group = g1 | g2
+
+        for n in combined_group:
+            group_dict[n] = combined_group
+
+        if len(combined_group) > len(largest_group):
+            print(f'largest group is now {combined_group}')
+            largest_group = combined_group
+
+    print(group_dict)
+    print(max(group_dict.values(), key=len))
+    return ','.join(sorted(largest_group))
+
+def p2_alt(ip: str) -> int:
     edges = set(parse(ip))
 
     parent_dict: dict[Node, Node] = {}

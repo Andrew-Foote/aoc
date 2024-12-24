@@ -128,3 +128,6 @@ def int_from_digits_leading_first(ds: Iterable[int], b: int=10) -> int:
         res += d
 
     return res
+
+def int_from_digits_leading_last(ds: Iterable[int], b: int=10) -> int:
+    return sum(d * b**n for n, d in enumerate(ds))
