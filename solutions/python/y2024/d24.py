@@ -219,6 +219,7 @@ def p2(ip: str) -> int:
 
     g.render('solutions/python/y2024/d24.gv', view=True)
 
+    # hard-coded solution from manual inspection
     return ','.join(sorted((
         'shh', 'z21', 'dtk', 'vgs', 'dqr', 'z33', 'pfw', 'z39'
     )))
