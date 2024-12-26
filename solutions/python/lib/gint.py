@@ -220,6 +220,9 @@ class gint:
 
     def __complex__(self) -> complex:
         return complex(self.real, self.imag)
+    
+    def __lt__(self, other):
+        return (self.real, self.imag) < (other.real, other.imag)
 
     def __hash__(self) -> int:
         # See https://docs.python.org/3/library/stdtypes.html#numeric-hash

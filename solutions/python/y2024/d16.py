@@ -115,3 +115,34 @@ def p1(ip: str) -> int:
             return node.cost
     else:
         assert False
+
+import heapq
+
+def children(
+    grid: Grid[str], pos: gint, d: gint
+) -> Generator[tuple[gint, gint, int]]:
+
+    if pos + d in grid and grid[pos + d] != '#':
+        yield (pos + d, d, 1)
+    
+    yield (pos, d * gint(0, 1), 1000)
+    yield (pos, d * gint(0, -1), 1000)
+
+def p1(ip: str) -> int:
+    grid = Grid(ip.splitlines())
+    start_pos = next(p for p in grid.rect() if grid[p] == 'S')
+    end_pos = next(p for p in grid.rect() if grid[p] == 'E')
+    queue = [(0, start_pos, EAST)]
+    heapq.heapify(queue)
+    visited = {(start_pos, EAST)}
+
+    while queue:
+        cost, pos, d = heapq.heappop(queue)
+
+        if pos == end_pos:
+            return cost
+
+        for cpos, cd, addcost in children(grid, pos, d):
+            if (cpos, cd) not in visited:
+                heapq.heappush(queue, (cost + addcost, cpos, cd))
+                visited.add((cpos, cd))
