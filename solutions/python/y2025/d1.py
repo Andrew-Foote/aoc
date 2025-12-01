@@ -47,12 +47,31 @@ def dial_trace_p2(ip: str) -> Iterator[tuple[int, int]]:
 
     for sign, amount in parse(ip):
         change = sign * amount
-        zero_count = 0
 
-        for d in range(dial + sign, dial + change + sign, sign):
-            if d % 100 == 0:
-                zero_count += 1
+        # Number of times dial arrives at 0 during the change
+        # = number of integers in the inclusive range with endpoints
+        #   dial + sign, dial + change which are divisible by 100
+        #
+        #  (this will be [dial + sign, dial + change] if sign == 1, and
+        #  [dial + change, dial + sign] if sign == -1)
+        # 
+        # In general, the number of integers in the inclusive range [0, x]
+        # divisible by 100 is floor(x / 100) + 1.
+        #
+        # So the number of integers in the inclusive range [a, x] divisible by
+        # 100 will be floor(x / 100) + 1 minus the number in [0, a) which are
+        # divisible by 100. The latter will be floor(a / 100) + 1, minus 1 if
+        # a is divisible by 100.
 
+        match sign:
+            case 1:
+                a, x = dial + sign, dial + change
+            case -1:
+                a, x = dial + change, dial + sign
+            case _:
+                assert False
+
+        zero_count = x // 100 + 1 - (a // 100 + 1 - (a % 100 == 0))
         dial = (dial + change) % 100
         yield dial, zero_count
 
