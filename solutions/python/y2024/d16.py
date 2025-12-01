@@ -22,7 +22,24 @@ test_inputs = [('example', '''\
 #.###.#.#.#.#.#
 #S..#.....#...#
 ###############''', [
-    ('p1', 7036)
+    ('p1', 7036),
+    ('on_best_path_pic', '''\
+###############
+#.......#....O#
+#.#.###.#.###O#
+#.....#.#...#O#
+#.###.#####.#O#
+#.#.#.......#O#
+#.#.#####.###O#
+#..OOOOOOOOO#O#
+###O#O#####O#O#
+#OOO#O....#O#O#
+#O#O#O###.#O#O#
+#OOOOO#...#O#O#
+#O###.#.#.#O#O#
+#O..#.....#OOO#
+###############'''),
+    ('p2', 45),
 ]), ('example2', '''\
 #################
 #...#...#...#..E#
@@ -41,7 +58,26 @@ test_inputs = [('example', '''\
 #.#.#.#########.#
 #S#.............#
 #################''', [
-    ('p1', 11048)
+    ('p1', 11048),
+    ('on_best_path_pic', '''\
+#################
+#...#...#...#..O#
+#.#.#.#.#.#.#.#O#
+#.#.#.#...#...#O#
+#.#.#.#.###.#.#O#
+#OOO#.#.#.....#O#
+#O#O#.#.#.#####O#
+#O#O..#.#.#OOOOO#
+#O#O#####.#O###O#
+#O#O#..OOOOO#OOO#
+#O#O###O#####O###
+#O#O#OOO#..OOO#.#
+#O#O#O#####O###.#
+#O#O#OOOOOOO..#.#
+#O#O#O#########.#
+#O#OOO..........#
+#################'''),
+    ('p2', 64),
 ]), ('small-example', '''\
 ####
 #SE#
@@ -54,95 +90,81 @@ test_inputs = [('example', '''\
     ('p1', 2001)
 ])]
 
-@ft.total_ordering
-@dataclass(frozen=True)
-class Node:
-    cost: int
-    pos: gint
-    dir: gint
-
-    def __hash__(self) -> bool:
-        return hash((self.pos, self.dir))
-
-    def __lt__(self, other: Self) -> bool:
-        return self.cost < other.cost
-    
-    def __repr__(self) -> str:
-        dirstring = {gint(0, -1): 'n', gint(0, 1): 's', gint(1, 0): 'e', gint(-1, 0): 'w'}
-        return f'{self.pos}:{dirstring[self.dir]}'
-
-def p1(ip: str) -> int:
-    # S is start
-    # E is end
-    # each moment, thrree poss actions:
-    #  - move forward (gains 1 point). not poss if wall in front
-    #  - turn clockwise (gain 1000 points)
-    #  - turn anticlockwise (gain 1000 points)
-    # competition is for the lowest score
-    # just simple dijsktra problem?
-
-    grid = Grid(ip.splitlines())
-    start_pos = next(p for p in grid.rect() if grid[p] == 'S')
-    end_pos = next(p for p in grid.rect() if grid[p] == 'E')
-    root = Node(0, start_pos, EAST)
-
-    def children(node: Node) -> Generator[Node]:
-        cost = node.cost
-        pos = node.pos
-        d = node.dir
-
-        clockd = d * gint(0, 1)
-        anticlockd = d * gint(0, -1)
-
-        if pos + d in grid and grid[pos + d] != '#':
-            # i = 1
-
-            # while grid[pos + i * d + clockd] == '#' and grid[pos + i * d + anticlockd] == '#' and pos + i * d + d in grid and grid[pos + i * d + d] != '#':
-            #     i += 1
-            
-            # yield Node(cost + i, pos + i * d, d)
-            # yield Node(cost + 1, pos + d, d)
-            yield Node(cost + 1, pos + d, d)
-
-        if (pos + clockd in grid and grid[pos + clockd] != '#') or (pos - d in grid and grid[pos - d] != '#'):
-            yield Node(cost + 1000, pos, d * gint(0, 1))
-
-        if (pos + anticlockd in grid and grid[pos + anticlockd] != '#') or (pos - d in grid and grid[pos - d] != '#'):
-            yield Node(cost + 1000, pos, d * gint(0, -1)) 
-
-    for node in dijkstra(root, children):
-        if grid[node.pos] == 'E':
-            return node.cost
-    else:
-        assert False
-
-import heapq
-
-def children(
-    grid: Grid[str], pos: gint, d: gint
-) -> Generator[tuple[gint, gint, int]]:
-
-    if pos + d in grid and grid[pos + d] != '#':
-        yield (pos + d, d, 1)
-    
-    yield (pos, d * gint(0, 1), 1000)
-    yield (pos, d * gint(0, -1), 1000)
+Node = tuple[gint, gint] # pos, dir
 
 def p1(ip: str) -> int:
     grid = Grid(ip.splitlines())
     start_pos = next(p for p in grid.rect() if grid[p] == 'S')
     end_pos = next(p for p in grid.rect() if grid[p] == 'E')
-    queue = [(0, start_pos, EAST)]
-    heapq.heapify(queue)
-    visited = {(start_pos, EAST)}
+    root = start_pos, EAST
 
-    while queue:
-        cost, pos, d = heapq.heappop(queue)
+    def children(node: Node) -> Generator[tuple[Node, int]]:
+        pos, dir_ = node
+        fw_pos = pos + dir_
+
+        if fw_pos in grid and grid[fw_pos] != '#':
+            yield (fw_pos, dir_), 1
+
+        yield (pos, dir_ * gint(0, 1)), 1000
+        yield (pos, dir_ * gint(0, -1)), 1000
+
+    for dnode in dijkstra(root, children):
+        pos, __ = dnode.node
+        cost = dnode.cost
 
         if pos == end_pos:
             return cost
 
-        for cpos, cd, addcost in children(grid, pos, d):
-            if (cpos, cd) not in visited:
-                heapq.heappush(queue, (cost + addcost, cpos, cd))
-                visited.add((cpos, cd))
+P2Node = tuple[Node, ...]
+
+def points_on_best_paths(grid: Grid) -> set[gint]:
+    start_pos = next(p for p in grid.rect() if grid[p] == 'S')
+    end_pos = next(p for p in grid.rect() if grid[p] == 'E')
+    root = (start_pos, EAST),
+
+    def children(node: P2Node) -> Generator[tuple[P2Node, int]]:
+        pos, dir_ = node[-1]
+        fw_pos = pos + dir_
+
+        if fw_pos in grid and grid[fw_pos] != '#':
+            yield (*node, (fw_pos, dir_)), 1
+        
+        yield (*node, (pos, dir_ * gint(0, 1))), 1000
+        yield (*node, (pos, dir_ * gint(0, -1))), 1000
+
+    min_cost = None
+    on_best_path: set[gint] = set()
+    search = dijkstra(root, children)
+
+    for dnode in search:
+        pos, _ = dnode.node[-1]
+        cost = dnode.cost
+
+        if min_cost is None:
+            if pos == end_pos:
+                on_best_path.update(pos for pos, _ in dnode.node)
+                min_cost = cost
+        elif pos == end_pos:
+            if cost <= min_cost:
+                on_best_path.update(pos for pos, _ in dnode.node)
+            else:
+                break
+
+    return on_best_path
+
+def on_best_path_pic(ip: str) -> int:
+    grid = Grid(ip.splitlines())
+    on_best_path = points_on_best_paths(grid)
+
+    def draw(p: gint) -> str:
+        if p in on_best_path:
+            return 'O'
+        else:
+            return grid[p]
+
+    return grid.rect().picture(draw)
+
+def p2(ip: str) -> int:
+    grid = Grid(ip.splitlines())
+    on_best_path = points_on_best_paths(grid)
+    return len(on_best_path)

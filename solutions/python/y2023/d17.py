@@ -41,7 +41,7 @@ test_inputs = [
 ]
 
 def parse_as_grid(ip: str) -> g.Grid:
-	return g.Grid(ip.splitlines(), conv=int)
+	return g.Grid.parse(ip.splitlines(), lambda p, x: int(x))
 
 class Dir(Enum):
 	NORTH = 0
