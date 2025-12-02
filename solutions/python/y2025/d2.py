@@ -9,5 +9,26 @@ test_inputs = [
     ]),
 ]
 
+def parse(ip: str) -> Iterator[tuple[int, int]]:
+    ip = ip.replace('\n', '')
+    
+    for r in ip.split(','):
+        a, b = r.split('-')
+        yield int(a), int(b)
+
+def is_valid(pid: str) -> bool:
+    if len(pid) % 2:
+        return True
+    
+    n = len(pid) // 2
+    return pid[:n] != pid[n:]
+
 def p1(ip: str) -> int:
-    ...
+    s = 0
+
+    for a, b in parse(ip):
+        for x in range(a, b + 1):
+            if not is_valid(str(x)):
+                s += x
+
+    return s
