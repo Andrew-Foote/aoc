@@ -17,6 +17,14 @@ test_inputs = [
 987654321111111
 ''', [
         ('p2_largest_joltages_csv', '987654321111'),
+    ]),
+    # https://old.reddit.com/r/adventofcode/comments/1pd118w/2025_day_3_part_2_what_are_the_edge_cases_my/
+    ('extra_example', '''\
+2232546378857275787561723292343835435343333776427842773354273372424413455462238746648634437374254318
+2232323232236223322223321222232212221212222222222332111132223222222222322133213322323133322222332224
+5345633566354453355546874555676462558526423364443535432344223165523377525665661379556365535642545245
+3312322113352322342133434233342422313224135342333232234332332232313223352233232336232233533323364322''', [
+        ('p2_largest_joltages_csv', '988887754318,633333333334,966642545245,653333364322')
     ])
 ]
 
@@ -99,4 +107,9 @@ def p2_largest_joltages_csv(ip: str) -> str:
     return ','.join(map(str, largest_joltages_p2(ip)))
 
 def p2(ip: str) -> int:
-    return sum(largest_joltages_p2(ip))
+    import time
+    t0 = time.perf_counter_ns()
+    r = sum(largest_joltages_p2(ip))
+    t1 = time.perf_counter_ns()
+    print((t1 - t0) / 1_000_000, 'milliseconds')
+    return r
