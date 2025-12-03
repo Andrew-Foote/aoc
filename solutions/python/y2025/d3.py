@@ -13,7 +13,7 @@ test_inputs = [
         ('p2_largest_joltages_csv', '987654321111,811111111119,434234234278,888911112111'),
         ('p2', 3121910778619),
     ]),
-    ('smlxample', '''\
+    ('smol_example', '''\
 987654321111111
 ''', [
         ('p2_largest_joltages_csv', '987654321111'),
@@ -23,16 +23,6 @@ test_inputs = [
 def parse(ip: str) -> Iterator[list[int]]:
     for line in ip.splitlines():
         yield [int(d) for d in line]
-
-def possible_joltages(bank: list[int]) -> Iterator[int]:
-    for i in range(len(bank)):
-        for j in range(i + 1, len(bank)):
-            d1 = bank[i]
-            d0 = bank[j]
-            yield d1 * 10 + d0
-
-# def largest_joltage(bank: list[int]) -> int:
-#     return max(possible_joltages(bank))
 
 def largest_joltage(bank: list[int]) -> int:
     debug = False
@@ -71,52 +61,17 @@ def p1_largest_joltages_csv(ip: str) -> str:
 def p1(ip: str) -> int:
     return sum(largest_joltages(ip))
 
-def possible_index_lists(length: int, n: int, cur: list[int]) -> Iterator[list[int]]:
-    if len(cur) == n:
-        yield cur
-        return
-
-    start = cur[-1] + 1 if cur else 0
-
-    for i in range(start, length):
-        yield from possible_index_lists(length, n, cur + [i])
-
-def possible_joltages_p2(bank: list[int], n: int=12) -> Iterator[int]:
-    for indices in possible_index_lists(len(bank), n, []):
-        ds = [bank[i] for i in indices]
-        yield fromdigits(ds)
-
-# def largest_joltage_p2(bank: list[int]) -> int:
-#     return max(possible_joltages_p2(bank))
-
-def largest_joltages_p2(ip: str) -> Iterator[int]:
-    for bank in parse(ip):
-        yield largest_joltage_p2(bank)
-
-def p2_largest_joltages_csv(ip: str) -> str:
-    return ','.join(map(str, largest_joltages_p2(ip)))
-
-def p2(ip: str) -> int:
-    return sum(largest_joltages_p2(ip))
-
-
-
-
-
-def largest_joltage_p2(bank: list[int]) -> int:
-    debug = False 
-    debugp = lambda s: print(s) if debug else None
-    debugp(f'{bank=}')
-    print(f'{bank=}')
-    largest_so_far: list[int] | None = None
-
-    largest = glmp(bank, largest_so_far, [], debug)
-    return fromdigits(largest)
-
-def glmp(
-    bank: list[int], largest_so_far: list[int] | None, 
-    cur_indices: list[int], debug: bool, nesting: int=1
+# Find the largest possible joltage output for the given bank, given a set of
+# digits that have already been turned on, if we are only allowed to turn on
+# digits after the ones that have already been turned on.
+def find_largest_joltage(
+    bank: list[int],
+    largest_so_far: list[int] | None, 
+    cur_indices: list[int],
+    debug: bool,
+    nesting: int=1
 ) -> list[int]:
+    
     debugp = lambda s: print(s) if debug else None
     cur_digits = [bank[i] for i in cur_indices]
 
@@ -128,16 +83,43 @@ def glmp(
     start = cur_indices[-1] + 1 if cur_indices else 0
     debugp(' ' * (nesting - 1) + f'glmp({largest_so_far=}, {cur_indices=}, {cur_digits=}, {start=})')
 
+    # this sorting was the key to making it efficient
+    # i guess because it ensures that the if-condition here rules out as many
+    # branches of the tree as possible
     for i in sorted(range(start, len(bank)), key=lambda i: -bank[i]):
         d = bank[i]
         debugp(' ' * nesting + f'{largest_so_far=}, {cur_indices=}, {i=}, {cur_digits=}, {d=}')
 
-        if largest_so_far is not None and cur_digits + [d] < largest_so_far[:i + 1]:
+        if (
+            largest_so_far is not None
+            and cur_digits + [d] < largest_so_far[:i + 1]
+        ):
             debugp(' ' * nesting + f'  too small')
             if debug: input()
             continue
 
-        largest_so_far = glmp(bank, largest_so_far, cur_indices + [i], debug, nesting + 1)
+        largest_so_far = find_largest_joltage(
+            bank, largest_so_far, cur_indices + [i], debug, nesting + 1
+        )
+        
         debugp(' ' * nesting + f'   updating largest_so_far')
 
     return largest_so_far
+
+def largest_joltage_p2(bank: list[int]) -> int:
+    debug = False 
+    debugp = lambda s: print(s) if debug else None
+    debugp(f'{bank=}')
+
+    largest = find_largest_joltage(bank, None, [], debug)
+    return fromdigits(largest)
+
+def largest_joltages_p2(ip: str) -> Iterator[int]:
+    for bank in parse(ip):
+        yield largest_joltage_p2(bank)
+
+def p2_largest_joltages_csv(ip: str) -> str:
+    return ','.join(map(str, largest_joltages_p2(ip)))
+
+def p2(ip: str) -> int:
+    return sum(largest_joltages_p2(ip))
