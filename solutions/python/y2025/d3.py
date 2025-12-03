@@ -25,29 +25,21 @@ def parse(ip: str) -> Iterator[list[int]]:
         yield [int(d) for d in line]
 
 def largest_joltage(bank: list[int]) -> int:
-    debug = False
-    debugp = lambda s: print(s) if debug else None
-    debugp(f'{bank=}')
     largest_so_far: list[int] | None = None
 
     for i in range(len(bank)):
         d1 = bank[i]
-        debugp(f'  {largest_so_far=}, {i=}, {d1=}')
 
         if largest_so_far is not None and d1 < largest_so_far[0]:
-            debugp(f'  too small')
             continue
 
         for j in range(i + 1, len(bank)):
             d0 = bank[j]
-            debugp(f'     {largest_so_far=}, {i=}, {j=}, {d1=}, {d0=}')
             
             if largest_so_far is not None and d1 == largest_so_far[0] and d0 < largest_so_far[1]:
-                debugp(f'    too small')
                 continue
     
             largest_so_far = [d1, d0]
-            debugp(f'   updating largest_so_far')
 
     return fromdigits(largest_so_far)
 
@@ -67,51 +59,36 @@ def p1(ip: str) -> int:
 def find_largest_joltage(
     bank: list[int],
     largest_so_far: list[int] | None, 
-    cur_indices: list[int],
-    debug: bool,
-    nesting: int=1
+    cur_indices: list[int]
 ) -> list[int]:
     
-    debugp = lambda s: print(s) if debug else None
     cur_digits = [bank[i] for i in cur_indices]
 
     if len(cur_indices) == 12:
-        debugp(' ' * (nesting - 1) + f'gfdlkld {cur_digits=}')
-        if debug: input()
         return cur_digits
     
     start = cur_indices[-1] + 1 if cur_indices else 0
-    debugp(' ' * (nesting - 1) + f'glmp({largest_so_far=}, {cur_indices=}, {cur_digits=}, {start=})')
 
     # this sorting was the key to making it efficient
     # i guess because it ensures that the if-condition here rules out as many
     # branches of the tree as possible
     for i in sorted(range(start, len(bank)), key=lambda i: -bank[i]):
         d = bank[i]
-        debugp(' ' * nesting + f'{largest_so_far=}, {cur_indices=}, {i=}, {cur_digits=}, {d=}')
 
         if (
             largest_so_far is not None
             and cur_digits + [d] < largest_so_far[:i + 1]
         ):
-            debugp(' ' * nesting + f'  too small')
-            if debug: input()
             continue
 
         largest_so_far = find_largest_joltage(
-            bank, largest_so_far, cur_indices + [i], debug, nesting + 1
+            bank, largest_so_far, cur_indices + [i]
         )
         
-        debugp(' ' * nesting + f'   updating largest_so_far')
-
     return largest_so_far
 
 def largest_joltage_p2(bank: list[int]) -> int:
-    debug = False 
-    debugp = lambda s: print(s) if debug else None
-    debugp(f'{bank=}')
-
-    largest = find_largest_joltage(bank, None, [], debug)
+    largest = find_largest_joltage(bank, None, [])
     return fromdigits(largest)
 
 def largest_joltages_p2(ip: str) -> Iterator[int]:
