@@ -2,6 +2,7 @@ from collections import defaultdict
 from collections.abc import Generator
 from fractions import Fraction
 import functools as ft
+import operator
 from pathlib import Path
 import pickle
 from solutions.python.lib.gint import gint
@@ -191,10 +192,10 @@ def side_count(region: set[gint]) -> int:
         (True, True, True): Fraction(0),
     }
  
-    return sum(
+    return int(ft.reduce(operator.add, (
         corner_map[p + c1 in region, p + c2 in region, p + c3 in region]
         for p in region for c1, c2, c3 in corners
-    )
+    )))
 
 def areas_csv(ip: str) -> str:
     return ','.join(str(area(region)) for _, region in regions(ip))
