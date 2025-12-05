@@ -14,7 +14,10 @@ def _typecheck(year, day) -> None:
 
     if mypy_ret != 0:
         print(f'\n\n{mypy_stdout}')
-        raise Exception('typecheck failed')
+
+        input(
+            'Typecheck failed; press Ctrl+C to abort, or press enter to continue anyway.'
+        )
 
 @ft.cache
 def _module(year, day):

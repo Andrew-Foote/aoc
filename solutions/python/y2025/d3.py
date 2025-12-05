@@ -69,7 +69,7 @@ def find_largest_joltage(
     bank: list[int],
     largest_so_far: list[int] | None, 
     cur_indices: list[int]
-) -> list[int]:
+) -> list[int] | None:
     
     cur_digits = [bank[i] for i in cur_indices]
 
@@ -94,11 +94,11 @@ def find_largest_joltage(
             bank, largest_so_far, cur_indices + [i]
         )
 
-    assert largest_so_far is not None        
     return largest_so_far
 
 def largest_joltage_p2(bank: list[int]) -> int:
     largest = find_largest_joltage(bank, None, [])
+    assert largest is not None
     return fromdigits(largest)
 
 def largest_joltages_p2(ip: str) -> Iterator[int]:
