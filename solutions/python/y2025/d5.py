@@ -73,13 +73,13 @@ def total_size(*rs: range) -> int:
         case []:
             return 0
         case [r]:
-            return max(0, r.stop - r.start)
+            return r.stop - r.start
         case [r1, *r2s]:
             r3s = [
                 r3 for r3 in (range_intersect(r1, r2) for r2 in r2s)
                 if r3.start < r3.stop
             ]
-            
+
             return (
                 total_size(r1) + total_size(*r2s) - total_size(*r3s)
             )
