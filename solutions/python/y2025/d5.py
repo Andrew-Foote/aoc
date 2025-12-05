@@ -50,30 +50,36 @@ def p1(ip) -> int:
         if db.is_fresh(ingredient)
     )
 
-# K(A u B_1 u ... u B_n) = K(A) + K(B_1 u ... u B_n)
-#                          - K(A n (B_1 u ... u B_n))
-# K(A n (B_1 u ... u B_n)) = K((A n B_1) u ... u (A n B_n))
-
 def range_intersect(r1: range, r2: range) -> range:
     start = max(r1.start, r2.start)
     stop = min(r1.stop, r2.stop)
     return range(start, stop)
 
-import functools as ft
-
-@ft.lru_cache
 def total_size(*rs: range) -> int:
-    #print(f'total_size({rs}) = ', end='')
+    """Compute the total size of the given ranges.
+    
+    This relies on the fact that for sets A, B_1, ..., B_n we have
+    
+    #(A | B_1 | ... | B_n) = #A + #(B_1 | ... | B_n)
+                           - #(A & (B_1 | ... | B_n))
+
+    and
+
+    #(A & (B_1 | ... | B_n)) = #((A & B_1) | ... | (A & B_n)),
+
+    where | denotes union and & denotes intersection."""
+
     match rs:
         case []:
-            #print('0')
             return 0
         case [r]:
-            #print(f'{max(0, r.stop - r.start)}')
             return max(0, r.stop - r.start)
         case [r1, *r2s]:
-            r3s = [range_intersect(r1, r2) for r2 in r2s]
-            #print(f'total_size(r1) + total_size(*{r2s}) - total_size(*{r3s})')
+            r3s = [
+                r3 for r3 in (range_intersect(r1, r2) for r2 in r2s)
+                if r3.start < r3.stop
+            ]
+            
             return (
                 total_size(r1) + total_size(*r2s) - total_size(*r3s)
             )
