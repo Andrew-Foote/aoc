@@ -15,6 +15,40 @@ test_inputs = [
 32''', [
         ('p1', 3),
         ('p2', 14),
+    ]),
+    ('example2', '''\
+200-300
+100-101
+1-1
+2-2
+3-3
+1-3
+1-3
+2-2
+50-70
+10-10
+98-99
+99-99
+99-99
+99-100
+1-1
+2-1
+100-100
+100-100
+100-101
+200-300
+201-300
+202-300
+250-251
+98-99
+100-100
+100-101
+1-101
+
+202
+''', [
+        ('p1', 1),
+        ('p2', 202)
     ])
 ]
 
@@ -88,4 +122,9 @@ def total_size(*rs: range) -> int:
 
 def p2(ip) -> int:
     db = parse(ip)
-    return total_size(*db.fresh)
+    import time
+    t0 = time.perf_counter_ns()
+    s = total_size(*reversed(db.fresh))
+    t1 = time.perf_counter_ns()
+    print(f'{(t1 - t0) / 1000000} milliseconds')
+    return s
