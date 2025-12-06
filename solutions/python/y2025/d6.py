@@ -2,6 +2,9 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from math import prod
 from typing import Literal
+from solutions.python.lib.digits import (
+    int_from_digits_leading_first as fromdigits
+)
 
 test_inputs = [('example', '''\
 123 328  51 64 
@@ -46,3 +49,53 @@ def problems_csv(ip: str) -> str:
 def p1(ip: str) -> int:
     return sum(problem.answer() for problem in parse(ip))
 
+def p2_parse(ip: str) -> Iterator[Problem]:
+    lines = ip.splitlines()
+    longest_line_length = max(len(line) for line in lines)
+
+    columns: list[list[str]] = [
+        [
+            (line[column_index] if column_index < len(line) else ' ')
+            for line in lines
+        ]
+        for column_index in range(longest_line_length)
+    ]
+
+    problems: list[list[list[str]]] = []
+    cur_problem: list[list[str]] = []
+
+    for column in columns:
+        if all(c == ' ' for c in column):
+            if cur_problem:
+                problems.append(cur_problem)
+            cur_problem = []
+        else:
+            cur_problem.append(column)
+
+    if cur_problem:
+        problems.append(cur_problem)
+
+    operand_count = len(lines) - 1
+
+    for problem in problems:
+        operation: str | None = None
+        operands: list[int] = []
+
+        for column in problem:
+            last_entry = column[operand_count]
+
+            if last_entry != ' ':
+                assert operation is None
+                operation = last_entry
+
+            operand = fromdigits(
+                int(d) for d in column[:operand_count] if d != ' '
+            )
+
+            operands.append(operand)
+        
+        assert operation is not None
+        yield Problem(operation, operands)
+
+def p2(ip: str) -> int:
+    return sum(problem.answer() for problem in p2_parse(ip))
