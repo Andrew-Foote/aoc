@@ -1,8 +1,8 @@
 from collections import defaultdict
-from collections.abc import Iterator
-from solutions.python.lib.gint import gint
-from solutions.python.lib.grid import Grid
-from solutions.python.lib import grid as g
+from collections.abc import Iterable, Iterator
+from dataclasses import dataclass
+from solutions.python.lib.grid2 import Grid, Point, Rect, Vec
+import solutions.python.lib.grid2 as g
 
 test_inputs = [
     ('example', '''\
@@ -98,15 +98,17 @@ test_inputs = [
     ]),
 ]
 
-def parse(ip: str) -> tuple[Grid, gint]:
+Node = tuple[Point, Vec]
+
+def parse(ip: str) -> tuple[Grid, Node]:
     grid_rows: list[list[str]] = []
-    guard_pos: gint
+    guard_pos: Point
 
     for y, line in enumerate(ip.splitlines()):
         grid_row: list[str] = []
 
         for x, char in enumerate(line):
-            pos = gint(x, y)
+            pos = Point(x, y)
             grid_row.append(char)
 
             if char == '^':
@@ -114,77 +116,132 @@ def parse(ip: str) -> tuple[Grid, gint]:
 
         grid_rows.append(grid_row)
 
-    return Grid(grid_rows), guard_pos
+    return Grid(grid_rows), (guard_pos, g.NORTH)
 
-Node = tuple[gint, gint] # (position, direction)
+@dataclass(frozen=True, slots=True)
+class ModifiedGrid:
+    orig_grid: Grid
+    new_obstacle: Point
 
-def get_next_node(grid: Grid, node: Node) -> Node | None:
-    pos, dir = node
-    next_pos = pos + dir
+    def rect(self) -> Rect:
+        return self.orig_grid.rect()
 
-    if next_pos not in grid:
-        return None
+    def __getitem__(self, p: Point) -> str:
+        if p == self.new_obstacle:
+            return '#'
+        
+        return self.orig_grid[p]
     
-    char = grid[next_pos]
+GridLike = Grid | ModifiedGrid
 
-    if char == '#':
-        return pos, dir * g.SOUTH
-    else:
-        return next_pos, dir
+def get_next_node(grid: GridLike, node: Node) -> Node | None:
+    p, d = node
 
-def get_path(grid: Grid, start: Node) -> Iterator[Node]:
-    node: Node | None = start
+    while True:
+        q = p + d
+
+        if q not in grid.rect():
+            return None
+        
+        if grid[q] == '#':
+            return p, d.rot_clockwise()
+        
+        p = q
+
+def get_path(grid: GridLike, start_node: Node) -> Iterator[Node]:
+    node: Node | None = start_node
 
     while node is not None:
-        # print(node)
         yield node
         node = get_next_node(grid, node)
 
-def guard_path(grid: Grid, start: gint) -> Iterator[Node]:
-    yield from get_path(grid, (start, g.NORTH))
+def get_full_path(grid: GridLike, path: Iterable[Node | None]) -> list[Node]:
+    result: list[Node] = []
+    prev_node: Node | None = None
+
+    for cur_node in path:
+        if cur_node is None:
+            assert prev_node is not None
+            prev_pos, prev_dir = prev_node
+            intermediate_pos = prev_pos
+
+            while True:
+                intermediate_pos += prev_dir
+
+                if intermediate_pos not in grid.rect():
+                    break
+                else:
+                    result.append((intermediate_pos, prev_dir))
+        else:
+            cur_pos, cur_dir = cur_node
+
+            if prev_node is not None:
+                prev_pos, prev_dir = prev_node
+                intermediate_pos = prev_pos
+
+                while True:
+                    intermediate_pos += prev_dir
+                    result.append((intermediate_pos, prev_dir))
+
+                    if intermediate_pos == cur_pos:
+                        break
+
+            result.append((cur_pos, cur_dir))
+
+        prev_node = cur_node
+
+    return result
+
+def get_visited_set(grid: Grid, start_node: Node) -> set[Point]:
+    short_path = list(get_path(grid, start_node)) + [None]
+    return {p for p, _ in get_full_path(grid, short_path)}
 
 def visited_pos_pic(ip: str) -> str:
-    grid, start = parse(ip)
-    visited = {pos for pos, _ in guard_path(grid, start)}
-    return grid.rect().picture(lambda pos: 'X' if pos in visited else grid[pos])
+    grid, start_node = parse(ip)
+    visited = get_visited_set(grid, start_node)
+    return grid.rect().picture(lambda p: 'X' if p in visited else grid[p])
 
 def p1(ip: str) -> int:
-    grid, start = parse(ip)
-    return len({pos for pos, _ in guard_path(grid, start)})
+    grid, start_node = parse(ip)
+    visited = get_visited_set(grid, start_node)
+    return len(visited)
 
-def cyclic_guard_paths(
-    grid: Grid, orig_guard_pos: gint
-) -> Iterator[tuple[gint, dict[gint, set[gint]]]]:
+def get_cycle_positions(
+    grid: Grid, start_node: Node
+) -> Iterator[tuple[Point, list[Node]]]:
 
-    poss_cycle_pos_set = {pos for pos, _ in guard_path(grid, orig_guard_pos)}
+    orig_visited = get_visited_set(grid, start_node)
 
-    for poss_cycle_pos in poss_cycle_pos_set:
-        modified_grid = grid.copy()
-        modified_grid[poss_cycle_pos] = '#'
+    for poss_cycle_pos in orig_visited:
+        new_grid = ModifiedGrid(grid, poss_cycle_pos)
+        path: list[Node] = []
+        seen: set[Node] = set()
 
-        seen: dict[gint, set[gint]] = defaultdict(set)
-
-        for guard_pos, guard_dir in guard_path(modified_grid, orig_guard_pos):
-            if guard_dir in seen[guard_pos]:
-                yield poss_cycle_pos, seen
+        for p, d in get_path(new_grid, start_node):
+            if (p, d) in seen:
+                path.append((p, d))
+                yield poss_cycle_pos, path
                 break
-            else:
-                seen[guard_pos].add(guard_dir)
+        
+            path.append((p, d))
+            seen.add((p, d))
 
-def cycle_pic(
-    grid: Grid, guard_pos: gint, cycle_pos: gint, seen: dict[gint, set[gint]]
+CycleInfo = dict[Point, set[Vec]]
+
+def get_cycle_pic(
+    grid: Grid, start_pos: Point, cycle_pos: Point, seen: CycleInfo
 ) -> str:
     
-    def pos_pic(pos: gint) -> str:
-        if pos == guard_pos:
+    def draw(p: Point) -> str:
+        if p == start_pos:
             return '^'
 
-        if pos == cycle_pos:
+        if p == cycle_pos:
             return 'O'
 
-        dirs = seen[pos]
-        has_vdir = gint(0, -1) in dirs or gint(0, 1) in dirs
-        has_hdir = gint(-1, 0) in dirs or gint(1, 0) in dirs
+        dirs = seen[p]
+        has_vdir = g.NORTH in dirs or g.SOUTH in dirs
+        has_hdir = g.EAST in dirs or g.WEST in dirs
 
         if has_vdir and has_hdir:
             return '+'
@@ -193,24 +250,36 @@ def cycle_pic(
         elif has_hdir:
             return '-'
         else:
-            return grid[pos]
+            return grid[p]
         
-    return grid.rect().picture(pos_pic)
+    return grid.rect().picture(draw)
 
 def cycle_pos_pics(ip: str) -> str:
-    grid, guard_pos = parse(ip)
-    pics: dict[gint, str] = {}
+    grid, start_node = parse(ip)
+    pics: dict[Point, str] = {}
 
-    for cycle_pos, seen in cyclic_guard_paths(grid, guard_pos):
-        pics[cycle_pos] = cycle_pic(grid, guard_pos, cycle_pos, seen)
+    for cycle_pos, short_path in get_cycle_positions(grid, start_node):
+        path = get_full_path(grid, short_path)
+        seen: CycleInfo = defaultdict(set)
 
-    cycle_pos_list = sorted(pics.keys(), key=lambda pos: (pos.imag, pos.real))
+        for p, d in path:
+            seen[p].add(d)
+
+
+        pics[cycle_pos] = get_cycle_pic(grid, start_node[0], cycle_pos, seen)
+
+    cycle_pos_list = sorted(pics.keys(), key=lambda pos: (pos.y, pos.x))
     return '\n\n'.join(pics[pos] for pos in cycle_pos_list)
 
 def p2(ip: str) -> int:
-    grid, orig_guard_pos = parse(ip)
-    return len({
-        cycle_pos for cycle_pos, _
-        in cyclic_guard_paths(grid, orig_guard_pos)
+    grid, start_node = parse(ip)
+    import time
+    t0 = time.perf_counter_ns()
+
+    r = len({
+        cycle_pos for cycle_pos, _ in get_cycle_positions(grid, start_node)
     })
-    
+
+    t1 = time.perf_counter_ns()
+    print(f'time elapsed: {(t1 - t0) / 1_000_000_000} seconds')
+    return r

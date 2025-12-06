@@ -2,8 +2,6 @@ settings.toml
 *.log
 db.sqlite
 input
-*.lprof
-*.prof
 
 # editor
 .vscode
@@ -14,6 +12,11 @@ __pycache__
 *.pyc
 .mypy_cache
 .hypothesis
+
+# python profiling tools
+*.lprof
+*.prof
+profile.svg
 
 # haskell
 dist-newstyle
