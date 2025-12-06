@@ -1,6 +1,7 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
 from math import prod
+import more_itertools as mit
 from typing import Literal
 from solutions.python.lib.digits import (
     int_from_digits_leading_first as fromdigits
@@ -14,6 +15,7 @@ test_inputs = [('example', '''\
 ''', [
     ('problems_csv', '*,123,45,6;+,328,64,98;*,51,387,215;+,64,23,314'),
     ('p1', 4277556),
+    ('p2', 3263827),
 ])]
 
 @dataclass(frozen=True, slots=True)
@@ -61,19 +63,9 @@ def p2_parse(ip: str) -> Iterator[Problem]:
         for column_index in range(longest_line_length)
     ]
 
-    problems: list[list[list[str]]] = []
-    cur_problem: list[list[str]] = []
-
-    for column in columns:
-        if all(c == ' ' for c in column):
-            if cur_problem:
-                problems.append(cur_problem)
-            cur_problem = []
-        else:
-            cur_problem.append(column)
-
-    if cur_problem:
-        problems.append(cur_problem)
+    problems = mit.split_at(
+        columns, lambda col: all(char == ' ' for char in col)
+    )
 
     operand_count = len(lines) - 1
 

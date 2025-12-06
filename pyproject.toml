@@ -17,6 +17,7 @@ dependencies = [
     "apsw",
     "graphviz",
     "line-profiler",
+    "more_itertools",
     "mpmath",
     "mypy",
     "numpy",
