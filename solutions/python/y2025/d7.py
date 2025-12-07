@@ -19,6 +19,7 @@ test_inputs = [('example', '''\
 .^.^.^.^.^...^.
 ...............''', [
     ('p1', 21),
+    ('p2', 40),
 ])]
 
 def parse(ip: str) -> tuple[Rect, Point, set[Point]]:
@@ -64,3 +65,36 @@ def p1(ip: str) -> int:
         beams = next_beams       
 
     return split_count
+
+def p2(ip: str) -> int:
+    rect, start, splitters = parse(ip)
+    split_count: int = 0
+    timelines: list[list[Point]] = [[start]]
+
+    while True:
+        print(len(timelines))
+        
+        next_timelines: list[list[Point]] = []
+        all_exited: bool = True
+
+        for timeline in timelines:
+            beam = timeline[-1]
+
+            if beam in rect:
+                all_exited = False
+                next_beam = beam + g.SOUTH
+
+                if next_beam in splitters:
+                    next_timelines.extend((
+                        timeline + [next_beam + g.WEST],
+                        timeline + [next_beam + g.EAST]
+                    ))
+                else:
+                    next_timelines.append(timeline + [next_beam])
+        
+        if all_exited:
+            break
+
+        timelines = next_timelines
+
+    return len(timelines)
