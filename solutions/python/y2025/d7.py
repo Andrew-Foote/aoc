@@ -67,7 +67,6 @@ def p1(ip: str) -> int:
 
     return split_count
 
-
 def p2(ip: str) -> int:
     rect, start, splitters = parse(ip)
 
