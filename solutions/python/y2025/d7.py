@@ -1,3 +1,4 @@
+import functools as ft
 from solutions.python.lib.grid2 import Point, Rect
 import solutions.python.lib.grid2 as g
 
@@ -66,35 +67,23 @@ def p1(ip: str) -> int:
 
     return split_count
 
+
 def p2(ip: str) -> int:
     rect, start, splitters = parse(ip)
-    split_count: int = 0
-    timelines: list[list[Point]] = [[start]]
 
-    while True:
-        print(len(timelines))
+    @ft.cache
+    def timeline_count(start: Point) -> int:
+        if start not in rect:
+            return 1
         
-        next_timelines: list[list[Point]] = []
-        all_exited: bool = True
+        nxt = start + g.SOUTH
 
-        for timeline in timelines:
-            beam = timeline[-1]
+        if nxt in splitters:
+            return (
+                timeline_count(nxt + g.WEST)
+                + timeline_count(nxt + g.EAST)
+            )
+    
+        return timeline_count(nxt)
 
-            if beam in rect:
-                all_exited = False
-                next_beam = beam + g.SOUTH
-
-                if next_beam in splitters:
-                    next_timelines.extend((
-                        timeline + [next_beam + g.WEST],
-                        timeline + [next_beam + g.EAST]
-                    ))
-                else:
-                    next_timelines.append(timeline + [next_beam])
-        
-        if all_exited:
-            break
-
-        timelines = next_timelines
-
-    return len(timelines)
+    return timeline_count(start)
