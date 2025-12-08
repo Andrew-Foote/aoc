@@ -28,6 +28,7 @@ test_inputs = [('example', '''\
 
 10''', [
     ('p1', 40),
+    ('p2', 25272),
 ])]
 
 Point3D = tuple[int, int, int]
@@ -75,3 +76,23 @@ def p1(ip: str) -> int:
 
     circuit_lengths = sorted(len(circuit) for circuit in circuits.values())
     return prod(circuit_lengths[-3:])
+
+def p2(ip: str) -> int:
+    boxes, _ = parse(ip)
+    
+    pairs = sorted(
+        it.combinations(boxes, 2),
+        key=lambda p: distance_squared(*p)
+    )
+
+    uf = UnionFind(boxes)
+
+    for box1, box2 in pairs:
+        uf.union(box1, box2)
+
+        circuit_ids = {uf.find(box) for box in boxes}
+
+        if len(circuit_ids) == 1:
+            return box1[0] * box2[0]
+        
+    assert False
