@@ -68,6 +68,7 @@ def p1(ip: str) -> int:
     return split_count
 
 def p2(ip: str) -> int:
+    import time
     rect, start, splitters = parse(ip)
 
     @ft.cache
@@ -85,4 +86,8 @@ def p2(ip: str) -> int:
     
         return timeline_count(nxt)
 
-    return timeline_count(start)
+    t0 = time.perf_counter_ns()
+    r = timeline_count(start)
+    t1 = time.perf_counter_ns()
+    print(f'{(t1 - t0) / 1_000_000} milliseconds')
+    return r

@@ -1,10 +1,15 @@
 from collections.abc import Iterable
+from dataclasses import dataclass, field
 
+@dataclass
 class UnionFind[T]:
-    parent_dict: dict[T, T]
-    rank_dict: dict[T, int]
+    parent_dict: dict[T, T] = field(default_factory=dict)
+    rank_dict: dict[T, int] = field(default_factory=dict)
 
     def __init__(self, elems: Iterable[T]) -> None:
+        self.parent_dict = {}
+        self.rank_dict = {}
+
         for elem in elems:
             self.add_singleton(elem)
 
