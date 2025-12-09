@@ -173,6 +173,8 @@ def green_tiles_pic(ip: str) -> str:
     return r.picture(draw)
 
 def p2(ip: str) -> int:
+    import time
+    t0 = time.perf_counter_ns()
     reds = list(parse(ip))
     border = get_border(reds)
     tile_combos = get_tile_combos(reds)
@@ -184,7 +186,9 @@ def p2(ip: str) -> int:
         all_green = True
 
         # The idea is: if the rectangle formed by t1 and t2 has a border tile in
-        # its interior it can't be all red and green tiles.
+        # its interior it can't be all red and green tiles. (And versa versa,
+        # if it has no border tiles in its interior it must be all red and green
+        # tiles).
         # 
         # This is based on the assumption that the border doesn't "meet up with
         # itself", i.e. we can't have a situation like
@@ -197,6 +201,17 @@ def p2(ip: str) -> int:
         #
         # The problem description doesn't really rule out this possibility, but
         # it works for my input.
+        #
+        # Semi-formal proof that the idea works: our assumption can be phrased
+        # as: every border tile has at least one of its 8 neighbours neither red
+        # nor green. So if a rectangle has a border tile in its interior then
+        # that neighbour which is neither red nor green must be in the 
+        # rectangle. Conversely, if there aren't any border tiles in the
+        # rectangle's interior then there are certainly some on the boundary
+        # (since the rectangle has two red tiles as corners, and those are on
+        # the border) so the border must lie entirely either outside or on the
+        # boundary of the rectangle which means the rectangle is within the
+        # border and so is all red/green.
         #
         # A vertical line segment with x-coordinate X and y-coordinates from Y0
         # to Y1 (inclusive) will intersect the rect (x0, x1) x (y0, y1) iff
@@ -223,4 +238,7 @@ def p2(ip: str) -> int:
         if all_green:
             good_tile_combos.append((t1, t2))
 
-    return max_area(good_tile_combos)
+    a = max_area(good_tile_combos)
+    t1 = time.perf_counter_ns()
+    print(f'time: {(t1 - t0) / 1_000_000_000} seconds')
+    return a
