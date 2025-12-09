@@ -49,7 +49,6 @@ def parse(ip: str) -> tuple[list[Point3D], int]:
     boxes: list[Point3D] = []
 
     for line in lines.splitlines():
-        print(line)
         x, y, z = map(int, line.split(','))
         boxes.append((x, y, z))
 
@@ -78,6 +77,8 @@ def p1(ip: str) -> int:
     return prod(circuit_lengths[-3:])
 
 def p2(ip: str) -> int:
+    import time
+    t0 = time.perf_counter_ns()
     boxes, _ = parse(ip)
     
     pairs = sorted(
@@ -93,6 +94,8 @@ def p2(ip: str) -> int:
         circuit_ids = {uf.find(box) for box in boxes}
 
         if len(circuit_ids) == 1:
+            t1 = time.perf_counter_ns()
+            print(f'{(t1 - t0) / 1_000_000_000} seconds')
             return box1[0] * box2[0]
         
     assert False
