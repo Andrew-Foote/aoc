@@ -36,17 +36,20 @@ def interleave(it1: Iterable[int], it2: Iterable[int]) -> Iterator[int]:
 	>>> list(it.islice(interleave(evens, squares), 15))
 	[0, 0, 1, 2, 4, 4, 6, 8, 9, 10, 12, 14, 16, 16, 18]
 	"""
-	nxt1 = it1.next()
-	nxt2 = it2.next()
+	itr1 = iter(it1)
+	itr2 = iter(it2)
+
+	nxt1 = next(itr1)
+	nxt2 = next(itr2)
 
 	while True:
 		while nxt1 <= nxt2:
 			yield nxt1
-			nxt1 = it1.next()
+			nxt1 = next(itr1)
 
 		while nxt2 < nxt1:
 			yield nxt2
-			nxt2 = it2.next()
+			nxt2 = next(itr2)
 
 if __name__ == '__main__':
 	import doctest

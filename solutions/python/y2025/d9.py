@@ -181,25 +181,60 @@ def green_tiles_pic(ip: str) -> str:
 
     return r.picture(draw)
 
+from solutions.python.lib.utils import range_intersection
+
 def p2(ip: str) -> int:
     reds = list(parse(ip))
     border = get_border(reds)
-    print('getting greens...')
-    greens = get_greens(reds)
+    # print('getting greens...')
+    # greens = get_greens(reds)
+
+    # any way to avoid looping through all of these?
     tile_combos = get_tile_combos(reds)
     good_tile_combos: list[tuple[Point, Point]] = []
 
     for t1, t2 in tile_combos:
+        print(f'checking {t1}, {t2}')
         x0, x1 = (t1.x, t2.x) if t1.x <= t2.x else (t2.x, t1.x)
         y0, y1 = (t1.y, t2.y) if t1.y <= t2.y else (t2.y, t1.y)
         all_green = True
 
-        for x, y in it.product(range(x0, x1 + 1), range(y0, y1 + 1)):
-            t = Point(x, y)
-            
-            if t not in border and t not in greens:
+        # if it has a border tile in its interior, it's not good
+        for X, (Y0, Y1) in border.vlines.items():
+            # we want to check if there's a point (x, y) in the rect interior
+            # with x = X and Y0 <= y <= Y1
+            # being in the rect interior means x0 < x < x1 and y0 < y < y1
+            # so x = X will be equivalent to x0 < X < x1
+            # and y0 < y < y1 will be equivalent to y in (y0, y1) nn [Y0, Y1]
+            # so we want to check if (x0, x1) contains X, and [Y0, Y1] intersects (y0, y1)
+            if X in range(x0 + 1, x1) and range_intersection(
+                range(Y0, Y1 + 1), range(y0 + 1, y1)
+            ):
                 all_green = False
                 break
+
+        for Y, (X0, X1) in border.hlines.items():
+            if Y in range(y0 + 1, y1) and range_intersection(
+                range(X0, X1 + 1), range(x0 + 1, x1)
+            ):
+                all_green = False
+                break 
+
+
+
+        # for x, y in it.product(range(x0 + 1, x1), range(y0 + 1, y1)):
+        #     t = Point(x, y)
+
+        #     if t in border:
+        #         all_green = False
+        #         break
+
+        # for x, y in it.product(range(x0, x1 + 1), range(y0, y1 + 1)):
+        #     t = Point(x, y)
+            
+        #     if t not in border and t not in greens:
+        #         all_green = False
+        #         break
 
         if all_green:
             good_tile_combos.append((t1, t2))
