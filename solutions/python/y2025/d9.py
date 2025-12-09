@@ -36,7 +36,54 @@ test_inputs = [
 .........#X#..
 ..............'''),
         ('p2', 24),
-    ])
+    ]),
+    # https://old.reddit.com/r/adventofcode/comments/1pi36pq/2025_day_9_part_2_more_examples_to_soften_your/
+    ('reddit1', '''\
+4,2
+13,2
+13,4
+8,4
+8,6
+11,6
+11,10
+4,10''', [
+        ('p2', 40)
+    ]),
+    ('reddit2', '''\
+3,2
+13,2
+13,4
+8,4
+8,6
+11,6
+11,11
+7,11
+7,8
+5,8
+5,10
+3,10''', [
+        ('p2', 35)
+    ]),
+    ('reddit3', '''\
+3,2
+17,2
+17,13
+13,13
+13,11
+15,11
+15,8
+11,8
+11,15
+18,15
+18,17
+4,17
+4,12
+6,12
+6,5
+3,5
+''', [
+        ('p2', 66)
+])
 ]
 
 def parse(ip: str) -> Generator[Point]:
@@ -173,8 +220,6 @@ def green_tiles_pic(ip: str) -> str:
     return r.picture(draw)
 
 def p2(ip: str) -> int:
-    import time
-    t0 = time.perf_counter_ns()
     reds = list(parse(ip))
     border = get_border(reds)
     tile_combos = get_tile_combos(reds)
@@ -238,7 +283,4 @@ def p2(ip: str) -> int:
         if all_green:
             good_tile_combos.append((t1, t2))
 
-    a = max_area(good_tile_combos)
-    t1 = time.perf_counter_ns()
-    print(f'time: {(t1 - t0) / 1_000_000_000} seconds')
-    return a
+    return max_area(good_tile_combos)
