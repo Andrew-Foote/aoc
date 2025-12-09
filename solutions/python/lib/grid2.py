@@ -16,11 +16,16 @@ NORTH = Vec(0, -1)
 EAST = Vec(1, 0)
 SOUTH = Vec(0, 1)
 WEST = Vec(-1, 0)
+NESW = (NORTH, EAST, SOUTH, WEST)
 
 @dataclass(frozen=True, slots=True, order=True)
 class Point:
     x: int
     y: int
+
+    def __iter__(self) -> Iterator[int]:
+        yield self.x
+        yield self.y
 
     def __add__(self, other: 'Vec') -> 'Point':
         return Point(self.x + other.x, self.y + other.y)
