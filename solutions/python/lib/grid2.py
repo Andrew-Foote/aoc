@@ -55,6 +55,17 @@ class Rect:
     @property
     def bottom(self) -> int:
         return self.br.y
+    
+    @property
+    def width(self) -> int:
+        return self.right - self.left
+    
+    @property
+    def height(self) -> int:
+        return self.bottom - self.top
+    
+    def area(self) -> int:
+        return self.width * self.height
 
     def __contains__(self, p: Point) -> bool:
         return self.left <= p.x < self.right and self.top <= p.y < self.bottom

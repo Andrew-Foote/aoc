@@ -83,7 +83,7 @@ test_inputs = [
 3,5
 ''', [
         ('p2', 66)
-])
+    ]),
 ]
 
 def parse(ip: str) -> Generator[Point]:
@@ -96,14 +96,17 @@ def get_tile_combos(reds: list[Point]) -> Generator[tuple[Point, Point]]:
         for t2 in reds[i + 1:]:
             yield t1, t2
 
+def get_area(tile_combo: tuple[Point, Point]) -> int:
+    t1, t2 = tile_combo    
+    width = abs(t1.x - t2.x) + 1
+    height = abs(t1.y - t2.y) + 1
+    return width * height
+
 def max_area(tile_combos: Iterable[tuple[Point, Point]]) -> int:
     areas: list[int] = []
     
     for t1, t2 in tile_combos:
-        width = abs(t1.x - t2.x) + 1
-        height = abs(t1.y - t2.y) + 1
-        area = width * height
-        areas.append(area)
+        areas.append(get_area((t1, t2)))
 
     return max(areas)
 
@@ -150,11 +153,11 @@ def get_border(reds: list[Point]) -> Border:
 
     return Border(vlines, hlines)
 
-def border_tiles_pic(ip: str) -> str:
+def border_tiles_pic(ip: str, dims=(14, 9)) -> str:
     reds = list(parse(ip))
     reds_set = set(reds)
     border = get_border(reds)
-    r = Rect(Point(0, 0), Point(14, 9))
+    r = Rect(Point(0, 0), Point(*dims))
 
     def draw(p: Point) -> str:
         if p in reds_set:
@@ -225,6 +228,9 @@ def p2(ip: str) -> int:
     tile_combos = get_tile_combos(reds)
     good_tile_combos: list[tuple[Point, Point]] = []
 
+    print(border_tiles_pic(ip, (20, 20)))
+    input()
+
     for t1, t2 in tile_combos:
         x0, x1 = (t1.x, t2.x) if t1.x <= t2.x else (t2.x, t1.x)
         y0, y1 = (t1.y, t2.y) if t1.y <= t2.y else (t2.y, t1.y)
@@ -258,6 +264,20 @@ def p2(ip: str) -> int:
         # boundary of the rectangle which means the rectangle is within the
         # border and so is all red/green.
         #
+        # (Actually, looking back at this again, the converse proof doesn't
+        # work; just because the border is all outside or on the boundary of
+        # a rectangle, doesn't mean the rectangle is inside the region...
+        # with something like
+        #
+        # .##A
+        # .#.# ###
+        # .#.# #.#
+        # .#.##B.#
+        # .#.....#
+        # .#######
+        #
+        # the rectangle with corners A, B is outside the region.)
+        #
         # A vertical line segment with x-coordinate X and y-coordinates from Y0
         # to Y1 (inclusive) will intersect the rect (x0, x1) x (y0, y1) iff
         # x0 < X < x1 and the intervals (y0, y1) and [Y0, Y1] intersect.
@@ -281,6 +301,7 @@ def p2(ip: str) -> int:
                 break 
 
         if all_green:
+            print('good combo: ', (t1, t2), 'area', get_area((t1, t2)))
             good_tile_combos.append((t1, t2))
 
     return max_area(good_tile_combos)
