@@ -192,7 +192,8 @@ def solve(
 	for constraint in constraints:
 		a = constraint.rhs.const_coeff
 
-		if len(constraint.lhs.var_coeffs) == 1:
+		# not sure why this is here, it doesn't seem to work
+		if len(constraint.lhs.var_coeffs) == 1 and False:
 			x = list(constraint.lhs.var_coeffs)[0]
 			i = xs.index(x)
 			lb = lbs[i]
@@ -224,6 +225,9 @@ def solve(
 			constraint_ubs.append(ub)
 
 	bounds = scipy.optimize.Bounds(lbs, ubs)
+	print(constraint_rows)
+	print(f'{constraint_lbs=}')
+	print(f'{constraint_ubs=}')
 	scipy_constraint = scipy.optimize.LinearConstraint(np.array(constraint_rows), constraint_lbs, constraint_ubs)
 	# print()
 	# print(objective_vec)
@@ -233,7 +237,7 @@ def solve(
 	# print()
 	result = scipy.optimize.milp(
 		objective_vec, integrality=integrality, bounds=bounds,
-		constraints=(scipy_constraint,), options={'disp': True}
+		constraints=(scipy_constraint,), options={'disp': False}
 	)
 
 	if not result.success:
