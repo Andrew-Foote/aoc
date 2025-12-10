@@ -7,7 +7,8 @@ test_inputs = [
 [.##.] (3) (1,3) (2) (2,3) (0,2) (0,1) {3,5,4,7}
 [...#.] (0,2,3,4) (2,3) (0,4) (0,1,2) (1,2,3,4) {7,5,12,7,2}
 [.###.#] (0,1,2,3,4) (0,3,4) (0,1,2,4,5) (1,2) {10,11,11,5,10,5}''', [
-        ('p1', 7)
+        ('p1', 7),
+        ('p2', 33)
 ])
 ]
 
@@ -15,15 +16,7 @@ test_inputs = [
 class Machine:
     goal: list[int]
     buttons: list[frozenset[int]]
-
-def press(lights: list[int], button: frozenset[int]) -> list[int]:
-    return [(1 - v if i in button else v) for i, v in enumerate(lights)]
-
-def press_all(lights: list[int], buttons: Iterable[frozenset[int]]) -> list[int]:
-    for button in buttons:
-        lights = press(lights, button)
-
-    return lights
+    joltages: list[int]
 
 def parse(ip: str) -> Generator[Machine]:
     for line in ip.splitlines():
@@ -35,6 +28,7 @@ def parse(ip: str) -> Generator[Machine]:
 
         joltage_str = parts[-1]
         assert joltage_str[0] == '{' and joltage_str[-1] == '}'
+        joltages = list(map(int, joltage_str[1:-1].split(',')))
 
         button_strs = parts[1:-1]
         buttons: list[frozenset[int]] = []
@@ -44,7 +38,19 @@ def parse(ip: str) -> Generator[Machine]:
             button = frozenset(map(int, button_str[1:-1].split(',')))
             buttons.append(button)
 
-        yield Machine(goal, buttons)
+        yield Machine(goal, buttons, joltages)
+
+def press(lights: list[int], button: frozenset[int]) -> list[int]:
+    return [(1 - v if i in button else v) for i, v in enumerate(lights)]
+
+def press_all(
+    lights: list[int], buttons: Iterable[frozenset[int]]
+) -> list[int]:
+
+    for button in buttons:
+        lights = press(lights, button)
+
+    return lights
 
 def minimal_presses(machine: Machine) -> int:
     lights = [0] * len(machine.goal)
@@ -87,3 +93,37 @@ def p1(ip: str) -> int:
 
     machines = list(parse(ip))
     return sum(map(minimal_presses, machines))
+
+def press_p2(joltages: list[int], button: frozenset[int]) -> list[int]:
+    return [(v + 1 if i in button else v) for i, v in enumerate(joltages)]
+
+def press_all_p2(
+    joltages: list[int], buttons: Iterable[frozenset[int]]
+) -> list[int]:
+
+    for button in buttons:
+        joltages = press_p2(joltages, button)
+
+    return joltages
+
+def minimal_presses_p2(machine: Machine) -> int:
+    joltages = [0] * len(machine.joltages)
+    buttons = machine.buttons
+
+    # ok, this time it's not enough to just check combinations, because
+    # multiplicities are also relevant
+    # is this a system of lienar equations in disguise?
+
+    for button_count in range(len(buttons) + 1):
+        combos = it.combinations(buttons, button_count)
+
+        for combo in combos:
+            combo_set = frozenset(combo)
+
+            if press_all_p2(joltages, combo_set) == machine.joltages:
+                return button_count
+            
+    assert False
+
+def p2(ip: str) -> int:
+    return sum(minimal_presses_p2(machine) for machine in parse(ip))
