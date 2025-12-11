@@ -1,3 +1,5 @@
+import functools as ft
+
 test_inputs = [
     ('example', '''\
 aaa: you hhh
@@ -63,10 +65,6 @@ def p1(ip: str) -> int:
 def p2(ip: str) -> int:
     graph = parse(ip)
     # need number of paths from svr to out that visit dac and fft
-    # i guess we can make a new graph where the nodes contain
-    # info about whether dac and fft have already been visited
-    # so for each node in the original graph
-
     # number of paths from A to B that visit C, given boolean indicating whether
     #  C was already visited
     # = (1, if A = B and C was already visited)
@@ -77,8 +75,6 @@ def p2(ip: str) -> int:
     #       IF D != C:
     #           number of paths from D to B with C already visited matching
     #              orig value
-
-    import functools as ft
 
     end = 'out'
 
