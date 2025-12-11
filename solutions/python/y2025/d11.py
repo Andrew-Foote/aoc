@@ -46,50 +46,25 @@ def numpaths(graph: dict[str, set[str]], start: str, end: str) -> int:
     if start == end:
         return 1
 
-    return sum(
-        numpaths(graph, inter, end) for inter in graph[start]
-    )
+    return sum(numpaths(graph, inter, end) for inter in graph[start])
 
 def p1(ip: str) -> int:
-    # how many paths from you to out?
-    # well there aren't any direct ones
-    # number of length 3: can be determined by searching the outputs of you
-    # (bbb and ccc), and seeing if any of those have out as an input
-    #
-    # number of paths from A to B
-    # = 1, if A = B
-    # = sum_(C such that (A, C) is an edge)
-    #         (number of paths from C to B),  otherwise
     return numpaths(parse(ip), 'you', 'out')
 
 def p2(ip: str) -> int:
     graph = parse(ip)
-    # need number of paths from svr to out that visit dac and fft
-    # number of paths from A to B that visit C, given boolean indicating whether
-    #  C was already visited
-    # = (1, if A = B and C was already visited)
-    # = (0, if A = B and C wasn't already visited)
-    # = sum_(D such that (A, D) is an edge)
-    #       IF D = C:
-    #           number of paths from C to B with C already visited
-    #       IF D != C:
-    #           number of paths from D to B with C already visited matching
-    #              orig value
-
     end = 'out'
 
     @ft.cache
     def numpaths_p2(start: str, inters: frozenset[str]) -> int:
+        """Number of paths from start to end that visit each node in inters."""
         if start == end:
-            return not inters
+            return inters.issubset({start})
         
         result: int = 0
 
         for inter in graph[start]:
-            if inter in inters:
-                result += numpaths_p2(inter, inters - frozenset({inter}))
-            else:
-                result += numpaths_p2(inter, inters)
+            result += numpaths_p2(inter, inters - frozenset({inter}))
 
         return result
 
