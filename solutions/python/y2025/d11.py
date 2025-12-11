@@ -48,20 +48,6 @@ def numpaths(graph: dict[str, set[str]], start: str, end: str) -> int:
         numpaths(graph, inter, end) for inter in graph[start]
     )
 
-def numpaths_p2(graph: dict[str, set[str]], start: str, end: str, inters: set[str]) -> int:
-    if start == end:
-        return not inters
-    
-    result: int = 0
-
-    for inter in graph[start]:
-        if inter in inters:
-            result += numpaths_p2(graph, inter, end, inters - {inter})
-        else:
-            result += numpaths_p2(graph, inter, end, inters)
-
-    return result
-
 def p1(ip: str) -> int:
     # how many paths from you to out?
     # well there aren't any direct ones
@@ -91,4 +77,24 @@ def p2(ip: str) -> int:
     #       IF D != C:
     #           number of paths from D to B with C already visited matching
     #              orig value
-    return numpaths_p2(parse(ip), 'svr', 'out', {'dac', 'fft'})
+
+    import functools as ft
+
+    end = 'out'
+
+    @ft.cache
+    def numpaths_p2(start: str, inters: frozenset[str]) -> int:
+        if start == end:
+            return not inters
+        
+        result: int = 0
+
+        for inter in graph[start]:
+            if inter in inters:
+                result += numpaths_p2(inter, inters - frozenset({inter}))
+            else:
+                result += numpaths_p2(inter, inters)
+
+        return result
+
+    return numpaths_p2('svr', frozenset({'dac', 'fft'}))
