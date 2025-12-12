@@ -161,6 +161,9 @@ class Region:
             print('NOT ENOUGH TILES TO FIT SHAPES EVEN IF THEY ALL OVERLAP PERFECTLY')
             return False
 
+        # The part after here is too slow to solve the example. But it
+        # turns out the two heuristics above were able to handle the actual
+        # input!
         input()
 
 
