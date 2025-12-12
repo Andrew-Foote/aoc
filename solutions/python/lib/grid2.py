@@ -11,6 +11,12 @@ class Vec:
 
     def rot_clockwise(self) -> 'Vec':
         return Vec(-self.y, self.x)
+    
+    def hflip(self) -> 'Vec':
+        return Vec(-self.x, self.y)
+
+    def __add__(self, other: 'Vec') -> 'Vec':
+        return Vec(self.x + other.x, self.y + other.y)
 
 NORTH = Vec(0, -1)
 EAST = Vec(1, 0)
