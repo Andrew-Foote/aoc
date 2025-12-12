@@ -60,12 +60,10 @@ def p2(ip: str) -> int:
         """Number of paths from start to end that visit each node in inters."""
         if start == end:
             return inters.issubset({start})
-        
-        result: int = 0
 
-        for inter in graph[start]:
-            result += numpaths_p2(inter, inters - frozenset({inter}))
-
-        return result
+        return sum(
+            numpaths_p2(inter, inters - frozenset({inter}))
+            for inter in graph[start]
+        )
 
     return numpaths_p2('svr', frozenset({'dac', 'fft'}))
