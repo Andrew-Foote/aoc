@@ -69,7 +69,7 @@ test_inputs = [('example', '''\
 ###
 ###
 #..'''),
-    ('p1', 2)
+    #('p1', 2)
 ])]
 
 @dataclass(frozen=True, slots=True)
@@ -151,7 +151,18 @@ class Region:
             + str([shape.index for shape in shapes_to_fit])
         )
 
+        number_of_shapes_to_fit = len(shapes_to_fit)
+
+        if self.width * self.height >= Shape.WIDTH * Shape.HEIGHT * number_of_shapes_to_fit:
+            print('ENOUGH TILES TO FIT SHAPES WITHOUT OVERLAPS')
+            return True
+
+        if self.width * self.height < sum(len(shape.tiles) for shape in shapes_to_fit):
+            print('NOT ENOUGH TILES TO FIT SHAPES EVEN IF THEY ALL OVERLAP PERFECTLY')
+            return False
+
         input()
+
 
         boards_after_fit = ways_to_fit(board, tuple(shapes_to_fit))
         return next(boards_after_fit, None) is not None
@@ -283,6 +294,14 @@ def p1(ip: str) -> int:
     shapes, regions = parse(ip)
     return sum(1 for region in regions if region.can_fit_its_shapes(shapes))
 
+    # Since each shape only occupies a 3 x 3 square, we can definitely fit all
+    # the shapes if the region can accomodate n 3 x 3 squares where n is the 
+    # numeber of shapes to be fitted---and this is the case if the area of
+    # the rect >= 9 * n
+
+    # 9 * 6 = 54 = 
+    # 9 * 7 = 63
+
 
 # ok wait
 # each shape takes up a certain amount of tiles
@@ -311,7 +330,7 @@ def p1(ip: str) -> int:
 #
 # but shape 0 with shape 2 --- there is a max of 1 overlap here
 # so their combination will occupy 9 + 9 - 2 = 16 places, which is more than 14
-# 
+# (oh, but given that the shapes can rotate, there can be an overlap of 2)
 # 
 # given a multiset of shapes, we can try to calculate the minimum number of 
 # tiles
